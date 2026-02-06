@@ -1,34 +1,60 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Open+Sans:wght@300;400;500;600;700&family=Roboto+Condensed:wght@300;400;700&display=swap');
+
+.canvas-bg {
+  background-color: #e2e8f0;
+  background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.paper-shadow {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.a4-ratio { aspect-ratio: 210 / 297; }
+
+.template-preview-frame {
+  transform-origin: top left;
+  pointer-events: none;
 }
 
-.App-link {
-    color: #61dafb;
+.template-preview-frame * {
+  pointer-events: none;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.safe-area-overlay {
+  position: absolute;
+  inset: 0;
+  border: 2px dashed rgba(255, 0, 0, 0.3);
+  margin: 5%;
+  pointer-events: none;
+  z-index: 50;
 }
+
+.bleed-overlay {
+  position: absolute;
+  inset: -3%;
+  border: 1px dashed rgba(0, 150, 0, 0.3);
+  pointer-events: none;
+  z-index: 50;
+}
+
+.layer-item {
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.layer-item:hover { background-color: #f1f5f9; }
+.layer-item.selected { background-color: #eff6ff; border-color: #3b82f6; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(59, 130, 246, 0.5); }
+  50% { border-color: rgba(59, 130, 246, 1); }
+}
+
+.exporting-indicator { animation: pulse-border 1.5s ease-in-out infinite; }
