@@ -306,8 +306,9 @@ export default function Dashboard() {
 
       {/* New Card Dialog */}
       <Dialog open={showNewCardDialog} onOpenChange={setShowNewCardDialog}>
-        <DialogContent data-testid="new-card-dialog">
+        <DialogContent data-testid="new-card-dialog" aria-describedby="new-card-desc">
           <DialogHeader><DialogTitle>Yeni Kart Olustur</DialogTitle></DialogHeader>
+          <p id="new-card-desc" className="sr-only">Yeni kart olusturmak icin bilgileri girin</p>
           <div className="space-y-4 py-2">
             <div><Label>Kart Adi *</Label><Input value={newCardName} onChange={(e) => setNewCardName(e.target.value)} placeholder="Yilbasi Tebrik Karti" data-testid="input-card-name" /></div>
             <div><Label>Kart Turu</Label>
