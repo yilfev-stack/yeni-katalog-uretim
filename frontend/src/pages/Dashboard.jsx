@@ -289,8 +289,9 @@ export default function Dashboard() {
 
       {/* New Catalog Dialog */}
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-        <DialogContent data-testid="new-catalog-dialog">
+        <DialogContent data-testid="new-catalog-dialog" aria-describedby="new-catalog-desc">
           <DialogHeader><DialogTitle>Yeni Katalog Olustur</DialogTitle></DialogHeader>
+          <p id="new-catalog-desc" className="sr-only">Yeni katalog olusturmak icin bilgileri girin</p>
           <div className="space-y-4 py-2">
             <div><Label>Katalog Adi *</Label><Input value={newCatalog.name} onChange={(e) => setNewCatalog({...newCatalog, name: e.target.value})} placeholder="Sofis 2026 Urun Katalogu" data-testid="input-catalog-name" /></div>
             <div><Label>Urun Adi</Label><Input value={newCatalog.product_name} onChange={(e) => setNewCatalog({...newCatalog, product_name: e.target.value})} placeholder="SOFIS VPI-A Series" data-testid="input-product-name" /></div>
