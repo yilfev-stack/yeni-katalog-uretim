@@ -1,4 +1,4 @@
-# PRO CREATIVE STUDIO - FINAL ON RAPOR v2 (GUNCEL)
+# PRO CREATIVE STUDIO - FINAL ON RAPOR v3 (SON VERSIYON)
 ## Web Uygulamasi - Sofis Urunleri Icin Profesyonel Marketing Studio
 ## Tarih: Subat 2026
 
@@ -12,9 +12,16 @@
 
 **Erisim:** Tarayici uzerinden (Chrome/Edge/Firefox)
 
+**KRITIK: LOCAL-FIRST MIMARI**
+- Bu proje hosted/cloud DEGIL, local-first olacak
+- Docker Compose ile kullanicinin kendi PC'sinde localhost uzerinden calisacak
+- Internetsiz de PDF/PNG/JPG export alinacak (ceviri haric)
+- Tum islemler (render, export, BG removal, resize) LOCAL sunucuda yapilir
+- Internet gereken TEK ozellik: Cevirmen (LLM API cagrisi)
+
 ---
 
-## 2. ONAYLANAN 6 MADDE (Tamamı Kapsamda)
+## 2. ONAYLANAN MADDELER (Tam Kapsam)
 
 ### Madde 1: Layer Yonetimi (Ust/Alt Siralama + Kilitleme)
 - Editor'da her eleman (metin, gorsel, logo, ikon) ayri bir layer
@@ -25,136 +32,214 @@
 - Secili layer vurgulanir (highlight)
 
 ### Madde 2: Edge Feathering + Grain/Kompozit Destegi
-- Urun gorseli eklendiginde "yapistirilmis" gorunmemesi icin:
-  - **Edge Feathering:** LAYER BAZLI - her gorsel layer'a ayri feather
-  - **Hafif Grain/Noise Overlay:** GLOBAL - tek overlay layer olarak tum tasarima uygulanir
-  - **Soft Shadow:** LAYER BAZLI - her layer'a ayri shadow
-  - **Blend Mode secenekleri:** LAYER BAZLI - Normal, Multiply, Screen, Overlay
-- **KRITIK:** Tum efektler (feather, grain, blend, shadow) preview ve export'ta BIREBIR ayni render edilecek
+- **Edge Feathering:** LAYER BAZLI - her gorsel layer'a ayri feather
+- **Grain/Noise Overlay:** GLOBAL - tek overlay layer olarak tum tasarima
+- **Soft Shadow:** LAYER BAZLI - her layer'a ayri shadow
+- **Blend Mode:** LAYER BAZLI - Normal, Multiply, Screen, Overlay
+- **GARANTI:** Tum efektler preview ve export'ta BIREBIR ayni render edilir
 
 ### Madde 3: JPEG/PNG Resize Yuksek Kalite
 - Server-side Pillow ile Lanczos algoritmasi
 - JPEG kalite ayari: 80-100 arasi secim
 - EXIF orientation otomatik duzeltme
-- Istege bagli hafif sharpen (netlik artirma)
+- Istege bagli hafif sharpen
 - Kabul testi: 3000px --> 1200px kucultmede bariz camurlasma olmayacak
-- PNG seffaf arka plan destegi korunacak
 
 ### Madde 4: Merkezi Asset Library (Projeler Arasi)
 - Tum projelerde ortak kullanilan asset havuzu
 - Kategoriler: Logolar, Ikonlar (SVG dahil), Arka Planlar, Urun Fotolari
-- Asset yukleme (PNG, JPG, SVG destegi), silme, etiketleme
-- Asset arama ve filtreleme
+- Asset yukleme (PNG, JPG, SVG), silme, etiketleme
 - Herhangi bir projeden asset library'ye erisim
-- Asset'i dogrudan canvas'a surukle-birak
 
 ### Madde 5: Brand/Theme (Renk + Font Seti) Destegi
 - Sirket bazli tema tanimlama (renk paleti + font seti)
-- Hazir tema presetleri (Demart Corporate, Dark Tech, Minimal vb.)
-- Ozel tema olusturma ve kaydetme
-- Tema degistirdiginde tum sablon otomatik guncellenir
+- Hazir tema presetleri + ozel tema olusturma
+- Tema degistirdiginde sablon otomatik guncellenir
 
 ### Madde 6: Batch Export (Tek Tikla Coklu Preset Boyut)
 - Toplu export: tek seferde birden fazla boyut ve format
-- Tumu ZIP dosyasi olarak indirilir
-- ZIP icinde dosya isimlendirme standardi: ProjeAdi_Tarih_Template_Boyut.format
-  - Ornek: SOFIS_VPI_20260215_IndustrialAlert_1080x1080.png
+- ZIP dosyasi olarak indirilir
+- Dosya isimlendirme standardi: ProjeAdi_Tarih_Sablon_Boyut.format
 
 ---
 
 ## 3. KRITIK TEKNIK TUZAKLAR VE COZUMLERI
 
-### TUZAK 1: Editor Preview = Export Birebir Ayni (WYSIWYG 1:1 Garanti)
+### TUZAK 1: Editor Preview = Export 1:1 Ayni
+- Editor preview ve export AYNI HTML/CSS template engine kullanir
+- Editor = Template Renderer (HTML/CSS) + Draggable Overlay
+- Export = Ayni HTML/CSS + Playwright render
+- **Garanti:** "Editor preview and exports use the SAME HTML/CSS render pipeline."
 
-**Risk:** Editor'da DOM/canvas ile preview, export'ta Playwright ile HTML render - ikisi farkli olabilir.
+### TUZAK 2: Efektler Preview = Export Ayni
+- Tum efektler SADECE CSS ile (Playwright ayni Chromium engine)
+- Feather: mask-image / filter:blur - LAYER BAZLI
+- Grain: background-image noise texture - GLOBAL
+- Blend: mix-blend-mode - LAYER BAZLI
+- Shadow: filter:drop-shadow / box-shadow - LAYER BAZLI
+- **Garanti:** "All effects render identically in preview and export."
 
-**COZUM (KESIN SART):**
-- Editor preview ve export AYNI HTML/CSS template engine uzerinden render edilecek
-- Editor = Template Renderer (HTML/CSS) + Draggable Overlay (duzenleme katmani)
-- Preview: React icinde ayni HTML/CSS sablonu render eder
-- Export: Ayni HTML/CSS sablonu Playwright'a gonderilir, Playwright render eder
-- Duzenleme elemanlari (tutamaclar, cerceveler, grid cizgileri) export sirasinda otomatik gizlenir
-- **Teknik garanti:** "Editor preview and exports use the SAME HTML/CSS render pipeline to guarantee 1:1 output consistency."
-
-### TUZAK 2: Feather/Grain/Blend Efektleri Preview = Export Ayni
-
-**Risk:** CSS efektleri tarayicida farkli, Playwright'ta farkli gorunebilir.
-
-**COZUM (KESIN SART):**
-- Tum gorsel efektler SADECE CSS ile uygulanir (Playwright ayni Chromium engine'i kullanir)
-- Feather: `mask-image: radial-gradient(...)` veya `filter: blur()` ile kenar yumusatma - LAYER BAZLI
-- Grain: `background-image` ile noise texture overlay - GLOBAL (tek layer, tum tasarimin ustunde)
-- Blend: `mix-blend-mode` CSS property - LAYER BAZLI
-- Shadow: `filter: drop-shadow()` veya `box-shadow` - LAYER BAZLI
-- Export oncesi TUM efektler ayni DOM uzerinden render edilir
-- **Teknik garanti:** "All visual effects (feather, grain, blend modes, shadows) render identically in both preview and exported outputs because both use the same Chromium CSS engine."
-
-### TUZAK 3: Background Removal Performans ve Kaynak Yonetimi
-
-**Risk:** rembg/U2Net CPU agir, yavash, tekrar tekrar ayni gorsel icin calisabilir.
-
-**COZUM (KESIN SART):**
-- BG removal islemi **job/queue** ile calisir
-- Islem sirasinda **progress status** doner (frontend'de "isleniyor..." gosterimi)
-- Sonuc **cache'lenir** (asset hash bazli): ayni gorsel tekrar yuklendignde cache'den donulur
-- Timeout siniri: max 60 saniye, asarsa hata mesaji
-- **Teknik garanti:** "Background removal runs as a queued job with progress status and cached results per asset hash."
+### TUZAK 3: BG Removal Performans
+- Job/queue ile calisir, progress status doner
+- Sonuc cache'lenir (asset hash bazli)
+- Ayni gorsel tekrar yuklendignde cache'den doner
+- Timeout: max 60 saniye
+- **Garanti:** "BG removal: queued job + progress + cached per asset hash."
 
 ---
 
-## 4. DEGERLI 5 EK MADDE (Proje Kalitesini Yukselten)
+## 4. DEGERLI EK MADDELER
 
-### EK A: Font Yonetimi - Server Bundle + PDF Gomulu (KRITIK)
-- Fontlar server'da paketli olacak (Google Fonts'a runtime bagimliligi yok)
-- CSS'de `@font-face` ile local dosyadan yukleme
-- Playwright render sirasinda fontlar %100 mevcut
-- PDF'de fontlar gomulu (embedded) olacak
-- Font fallback listeleri tanimli (birincil font yoksa ikincil devreye girer)
-- **Garanti:** "Fonts are bundled and embedded for reliable PDF rendering; no dependency on client-installed or CDN-served fonts at export time."
+### EK A: Font Bundle (Server-Side, PDF Gomulu)
+- Fontlar server'da paketli (CDN'ye bagimsiz, internetsiz calisir)
+- CSS'de @font-face ile local dosyadan yukleme
+- PDF'de fontlar %100 gomulu
+- Font fallback listeleri tanimli
 
-### EK B: Safe Area / Bleed (A4 Baski Icin)
-- Editor'da "safe margin" overlay gosterimi (toggle ile acilip kapanir)
-- Icerik bu alanin icinde kalmali uyarisi
-- A4 baski icin 5mm safe margin cizgisi
-- Bleed opsiyonel: 3mm tasma alani (baski evi icin)
-- Safe area cizgileri export'a dahil edilmez (sadece editor rehberi)
+### EK B: Safe Area / Bleed (A4 Baski)
+- Editor'da safe margin overlay (toggle ile acilir/kapanir)
+- A4 icin 5mm safe margin cizgisi
+- Bleed opsiyonel: 3mm tasma alani
+- Safe area cizgileri export'a dahil edilmez
 
-### EK C: Versioning / Export Gecmisi (Net Teknik Tanimlama)
-- Her export islemi bir "version" kaydi olusturur (MongoDB'de)
-- Kayit icerigi: tarih, format, boyut, kalite ayari, dosya adi
-- Dashboard'da proje bazli export gecmisi listesi
-- ZIP icinde dosya isimlendirme standardi:
-  ```
-  {ProjeAdi}_{Tarih}_{SablonAdi}_{Boyut}.{format}
-  Ornek: SOFIS_VPI_20260215_IndustrialAlert_1080x1080.png
-  Ornek: SOFIS_VPI_20260215_TechDataSheet_A4Portrait.pdf
-  ```
+### EK C: Versioning / Export Gecmisi
+- Her export bir version kaydi olusturur
+- Dashboard'da proje bazli export gecmisi
+- ZIP isimlendirme: {ProjeAdi}_{Tarih}_{Sablon}_{Boyut}.{format}
 
-### EK D: SVG Ikon / Vektor Destegi (KRITIK)
-- Asset library'ye SVG dosya yukleme destegi
-- SVG ikonlar canvas'ta vektor olarak render edilir (buyutmede bozulmaz)
-- PDF export'ta SVG vektor olarak kalir (camurlasma olmaz)
-- PNG export'ta yuksek cozunurlukle rasterize edilir
-- Hazir ikon seti: endustriyel ikonlar (vana, boru, sensor, pompa vb.)
+### EK D: SVG Ikon / Vektor Destegi
+- Asset library'ye SVG yukleme
+- Canvas'ta vektor render (buyutmede bozulmaz)
+- PDF'de SVG vektor kalir
 
-### EK E: Terminoloji Sozlugu - Lock Ozelligi
-- Glossary'de her terim icin "lock" (kilit) secenegi
-- Kilitli terimler ceviri sirasinda ASLA degistirilmez (exact match protect)
-- Case sensitive opsiyonu: "VPI" sadece buyuk harfle korunur
-- Case insensitive: "easidrive" ve "EasiDrive" ayni sekilde korunur
-- Varsayilan kilitli terimler: EasiDrive, VPI, Netherlocks, Sofis, Demart
-- Kullanici yeni terim ekleyip kilitleyebilir
+### EK E: Terminoloji Sozlugu Lock
+- Kilitli terimler ceviride ASLA degistirilmez
+- Case sensitive opsiyonu
+- Varsayilan kilitli: EasiDrive, VPI, Netherlocks, Sofis, Demart
 
 ---
 
-## 5. ANA EKRANLAR VE ARAYUZ
+## 5. YENl EKLENEN 3 MADDE (v3)
 
-### EKRAN 1: DASHBOARD (Ana Sayfa)
+### YENl 1: LOCAL-FIRST MIMARI (Internetsiz Calisma)
+
+**Prensip:** Uygulama kullanicinin PC'sinde Docker Compose ile calisir. Internet baglantisi SADECE cevirmen icin gerekli.
+
+**Internetsiz calisan ozellikler:**
+- PDF export (Playwright, local Chromium)
+- PNG/JPG export (Playwright screenshot, local)
+- Background removal (rembg, local U2Net model)
+- Gorsel resize (Pillow, local)
+- Tum editor islemleri (drag&drop, layer, efektler)
+- Asset library (local MongoDB)
+- Theme/brand ayarlari (local)
+- Proje kaydet/ac (local)
+
+**Internet gerektiren ozellikler:**
+- Cevirmen (LLM API cagrisi)
+- Cevirmen kullanilmadiginda internet GEREKMEZ
+
+**Docker Compose yapisi:**
+```yaml
+services:
+  frontend:
+    build: ./frontend
+    ports: ["3000:3000"]
+
+  backend:
+    build: ./backend
+    ports: ["8001:8001"]
+    depends_on: [mongodb]
+
+  mongodb:
+    image: mongo:7
+    ports: ["27017:27017"]
+    volumes: ["mongo_data:/data/db"]
+
+volumes:
+  mongo_data:
+```
+
+### YENl 2: Web Optimize Dosya Boyutu ve Export Performans Hedefi
+
+**Dosya boyutu hedefleri:**
+
+| Format | Yuksek Kalite | Web Optimize |
+|--------|--------------|--------------|
+| PDF A4 (tek sayfa) | 500KB - 2MB | 200KB - 500KB |
+| PNG 1080x1080 | 800KB - 2MB | 200KB - 400KB |
+| PNG 1920x1080 | 1.5MB - 4MB | 400KB - 800KB |
+| JPG 1080x1080 | 300KB - 800KB | 80KB - 200KB |
+| JPG 1920x1080 | 600KB - 1.5MB | 150KB - 400KB |
+
+**Web Optimize teknikleri:**
+- PNG: Pillow optimize=True, compress_level=9
+- JPG: quality=75 (Web) vs quality=95 (High)
+- PDF: Gorseller PDF icinde compress edilir
+- Batch ZIP: her dosya ayri optimize edilir
+
+**Export performans hedefleri:**
+
+| Islem | Hedef Sure |
+|-------|-----------|
+| Tekli PDF export | < 5 saniye |
+| Tekli PNG export | < 3 saniye |
+| Tekli JPG export | < 2 saniye |
+| Batch export (6 preset) | < 20 saniye |
+| Background removal | < 30 saniye (ilk kez) |
+| Background removal (cache) | < 1 saniye |
+| Gorsel resize | < 2 saniye |
+
+**Performans optimizasyonlari:**
+- Playwright browser instance havuzu (her export'ta yeni acilmaz)
+- rembg model bir kere yuklenir, bellekte kalir
+- Asset cache (ayni gorsel tekrar islenmez)
+- Paralel batch export (mumkun oldugunda)
+
+### YENl 3: Project Backup/Restore (JSON/ZIP Export & Import)
+
+**Backup Export (Proje Yedekleme):**
+- Tek tikla projeyi ZIP olarak indir
+- ZIP icerigi:
+  ```
+  project_backup_SofisVPI_20260215.zip
+  ├── project.json          # Proje verileri (sayfalar, icerik, layer bilgileri)
+  ├── theme.json            # Aktif tema ayarlari (renk paleti + font seti)
+  ├── glossary.json         # Terminoloji sozlugu (tum terimler + kilit durumu)
+  ├── assets/               # Projede kullanilan tum asset'ler
+  │   ├── logo_demart.png
+  │   ├── logo_sofis.png
+  │   ├── product_vpi.jpg
+  │   ├── icon_valve.svg
+  │   └── bg_industrial.jpg
+  └── manifest.json         # Backup meta: tarih, versiyon, uygulama surumu
+  ```
+
+**Backup Import (Proje Geri Yukleme):**
+- ZIP dosyasi yukle --> uygulama otomatik parse eder
+- Import secenekleri:
+  - [x] Proje verilerini yukle
+  - [x] Tema ayarlarini yukle
+  - [x] Sozlugu yukle
+  - [x] Asset'leri yukle
+  - [ ] Mevcut projeyi degistir (override) / Yeni proje olarak ekle
+- Catisma yonetimi: ayni isimde proje varsa "ustune yaz" veya "yeni kopya" secimi
+
+**Kullanim senaryolari:**
+- PC degisikligi: eski PC'den backup al, yeni PC'ye yukle
+- Takim calismasi: projeyi meslektasa ZIP ile gonder
+- Guvenlik: duzeli aralklarla yedek alma
+- Sablon paylasimi: ornek proje ZIP'i paylasma
+
+---
+
+## 6. ANA EKRANLAR
+
+### EKRAN 1: DASHBOARD
 ```
 +------------------------------------------------------------------+
-|  [DEMART Logo]  PRO CREATIVE STUDIO  [Asset Lib] [Tema] [Ayarlar]|
+|  [DEMART Logo]  PRO CREATIVE STUDIO  [Asset] [Tema] [Backup] [?] |
 +------------------------------------------------------------------+
-|                                                                    |
 |  +------------------+  +------------------+  +------------------+  |
 |  |  KATALOGLAR      |  |  TEBRIK KARTLARI |  |  TAZIYE KARTLARI |  |
 |  |  [sayi] adet     |  |  [sayi] adet     |  |  [sayi] adet     |  |
@@ -163,50 +248,20 @@
 |                                                                    |
 |  SON PROJELER                         [Ara...]  [Etiket v] [Yil v]|
 |  +--------------------------------------------------------------+  |
-|  | [Thumb] Sofis VPI Katalog    | 3 sayfa | 15 Sub 2026 | [>]  |  |
-|  | [Thumb] Rosemount DP Meter   | 1 sayfa | 12 Sub 2026 | [>]  |  |
-|  | [Thumb] Yilbasi Tebrik       | 1 kart  | 01 Oca 2026 | [>]  |  |
+|  | [Thumb] Sofis VPI Katalog  | 3 sayfa | 15 Sub | [Backup][>] |  |
+|  | [Thumb] Rosemount DP Meter | 1 sayfa | 12 Sub | [Backup][>] |  |
 |  +--------------------------------------------------------------+  |
+|                                                                    |
+|  [Proje Yukle (Import ZIP)]                                       |
 |                                                                    |
 |  ASSET KUTUPHANESI (Hizli Erisim)                                 |
 |  +--------------------------------------------------------------+  |
-|  | Logolar (4)  | Ikonlar SVG (6) | Arka Plan (8) | Foto (12)  |  |
-|  | [thumb] [thumb] [thumb] [thumb] [thumb] [thumb]...  [+ Ekle] |  |
+|  | Logolar (4) | Ikonlar SVG (6) | ArkaPlan (8) | Foto (12)    |  |
 |  +--------------------------------------------------------------+  |
 +------------------------------------------------------------------+
 ```
 
----
-
-### EKRAN 2: SABLON SECIM EKRANI
-```
-+------------------------------------------------------------------+
-|  [<] Geri    Sablon Secin              [Tema: Demart Corporate v] |
-+------------------------------------------------------------------+
-|  KATEGORI:                                                         |
-|  [Tumunu Goster] [Urun Tanitim] [Etkinlik] [Teknik] [Kart]      |
-|                                                                    |
-|  +-------------+  +-------------+  +-------------+                |
-|  | Industrial  |  | Event       |  | Minimal     |                |
-|  | Product     |  | Poster      |  | Premium     |                |
-|  | Alert       |  | (ENOSAD)    |  |             |                |
-|  | [Sec]       |  | [Sec]       |  | [Sec]       |                |
-|  +-------------+  +-------------+  +-------------+                |
-|  +-------------+  +-------------+  +-------------+                |
-|  | Tech Data   |  | Photo       |  | Geometric   |                |
-|  | Sheet       |  | Dominant    |  | Corporate   |                |
-|  | [Sec]       |  | [Sec]       |  | [Sec]       |                |
-|  +-------------+  +-------------+  +-------------+                |
-|  +-------------+  +-------------+  +-------------+  +-------------+|
-|  | Dark Tech   |  | Clean Grid  |  | Tebrik Karti|  | Taziye Karti||
-|  | [Sec]       |  | [Sec]       |  | [Sec]       |  | [Sec]       ||
-|  +-------------+  +-------------+  +-------------+  +-------------+|
-+------------------------------------------------------------------+
-```
-
----
-
-### EKRAN 3: EDITOR (Ana Calisma Alani) — GUNCEL
+### EKRAN 3: EDITOR
 ```
 +------------------------------------------------------------------+
 | [<] Proje: Sofis VPI  | [Kaydet] [GeriAl] [Cevirmen] [Export]   |
@@ -217,39 +272,29 @@
 | |[mini]| | |  AYNI HTML/CSS TEMPLATE      || | Baslik [___][Cv] ||
 | |      | | |  ENGINE ILE RENDER           || | Aciklama [___]   ||
 | +------+ | |                              || | Ozellikler [___] ||
-| |S.2   | | |  Duzenleme elemanlari        || | Uygulamalar [___]||
-| |[mini]| | |  (tutamac, cerceve)          || | Avantajlar [___] ||
-| |      | | |  sadece overlay katmani      || |                  ||
-| +------+ | |                              || | GORSEL           ||
-| |      | | |  [Safe Area cizgileri]       || | [Yukle]          ||
-| | [+]  | | |  [Bleed gosterimi]          || | [Arka Plan Sil]  ||
-| |Ekle  | | |                              || | Fit: [Cover v]   ||
-| +------+ | +------------------------------+| |                  ||
-|          | [%50] [%75] [%100] [Sigdir]     | | EFEKTLER          ||
-|          |                                  | | Opacity  [====]  ||
-|          | LAYER PANELI                     | | Shadow   [====]  ||
-|          | +------------------------------+| | Feather  [====]  ||
-|          | | [goz][kilit] Baslik Metni    || | Blend [Normal v] ||
-|          | | [goz][kilit] Urun Gorseli    || |                  ||
-|          | | [goz][kilit] Arka Plan       || | GRAIN OVERLAY     ||
-|          | | [goz][kilit] Logo (SVG)      || | [acik/kapali]    ||
-|          | | [goz][kilit] Ikon (SVG)      || | Yogunluk [====]  ||
-|          | | [goz][kilit] Footer          || |                  ||
-|          | |        [Yukari] [Asagi]      || | TEMA             ||
-|          | +------------------------------+| | [Demart Corp. v] ||
-|          |                                  | +------------------+|
+| |S.2   | | |  Duzenleme overlay           || | Uygulamalar [___]||
+| |[mini]| | |  (sadece editor'da gorunur)  || | Avantajlar [___] ||
+| +------+ | |                              || |                  ||
+| | [+]  | | |  [Safe Area] [Bleed]         || | GORSEL           ||
+| +------+ | +------------------------------+| | [Yukle]          ||
+|          | [%50] [%75] [%100] [Sigdir]     | | [Arka Plan Sil]  ||
+|          |                                  | |                  ||
+|          | LAYER PANELI                     | | EFEKTLER          ||
+|          | +------------------------------+| | Opacity  [====]  ||
+|          | | [goz][kilit] Baslik          || | Shadow   [====]  ||
+|          | | [goz][kilit] Gorsel          || | Feather  [====]  ||
+|          | | [goz][kilit] ArkaPlan        || | Blend [Normal v] ||
+|          | | [goz][kilit] Logo SVG        || |                  ||
+|          | | [goz][kilit] Footer          || | GRAIN OVERLAY     ||
+|          | |       [Yukari] [Asagi]       || | [acik/kapali]    ||
+|          | +------------------------------+| | Yogunluk [====]  ||
+|          |                                  | |                  ||
+|          | DURUM CUBUGU                     | | TEMA             ||
+|          | [Internetsiz] [Local Mode]      | | [Demart Corp. v] ||
 +------------------------------------------------------------------+
 ```
 
-**KRITIK MIMARI NOTU:**
-- Canvas preview = HTML/CSS Template Engine + Draggable Overlay
-- Export = AYNI HTML/CSS Template Engine + Playwright render
-- Duzenleme elemanlari (tutamac, cerceve, grid) export'a dahil EDILMEZ
-- Preview'de gorunen = export'ta cikan (1:1 garanti)
-
----
-
-### EKRAN 4: DISA AKTARMA (Export Dialog) — GUNCEL
+### EKRAN 4: EXPORT DIALOG
 ```
 +--------------------------------------------------+
 |              DISA AKTAR                           |
@@ -257,280 +302,194 @@
 |  EXPORT MODU:                                     |
 |  (*) Tekli Export    ( ) TOPLU EXPORT (Batch)     |
 |                                                   |
-|  ---- TEKLI EXPORT ----                           |
 |  FORMAT:  (*) PDF    ( ) PNG    ( ) JPG           |
 |                                                   |
 |  BOYUT:                                           |
-|  (*) A4 Dikey (Portrait)         210x297mm        |
-|  ( ) A4 Yatay (Landscape)        297x210mm        |
-|  ( ) 1080x1080  Instagram Kare                    |
-|  ( ) 1080x1350  Instagram Story                   |
-|  ( ) 1200x628   LinkedIn / Facebook               |
-|  ( ) 1920x1080  Sunum / Banner                    |
-|  ( ) Ozel Boyut: [___] x [___] (px veya mm)      |
+|  (*) A4 Dikey          210x297mm                  |
+|  ( ) A4 Yatay          297x210mm                  |
+|  ( ) 1080x1080         Instagram Kare             |
+|  ( ) 1080x1350         Instagram Story            |
+|  ( ) 1200x628          LinkedIn/Facebook          |
+|  ( ) 1920x1080         Sunum/Banner               |
+|  ( ) Ozel Boyut: [___] x [___] (px/mm)           |
 |                                                   |
 |  KALITE:                                          |
-|  (*) Yuksek Kalite (baski icin)                   |
-|  ( ) Web Optimize (kucuk dosya)                   |
+|  (*) Yuksek Kalite  ~500KB-2MB (baski icin)       |
+|  ( ) Web Optimize   ~80KB-400KB (dijital icin)    |
 |  JPEG KALITE: [========90========] %90            |
 |                                                   |
-|  ---- TOPLU EXPORT (Batch) ----                   |
+|  TOPLU EXPORT:                                    |
 |  [x] PDF A4 Portrait                              |
 |  [x] PNG 1080x1080                                |
 |  [x] PNG 1080x1350                                |
 |  [x] PNG 1200x628                                 |
-|  [ ] PNG 1920x1080                                |
-|  [ ] JPG Web Optimize                             |
-|  Cikti: ZIP (dosya adi standardi uygulanir)       |
+|  Tahmini sure: ~15 sn | Tahmini boyut: ~3MB ZIP  |
 |                                                   |
 |  [Disa Aktar]                       [Iptal]       |
 +--------------------------------------------------+
 ```
 
----
-
-### EKRAN 5: CEVIRMEN PANELI — GUNCEL (Glossary Lock Dahil)
-```
-+------------------------------------------+
-|         CEVIRMEN                     [X]  |
-+------------------------------------------+
-|  KAYNAK: [English v] --> HEDEF: [Turkce v]|
-|                                          |
-|  TON:                                    |
-|  (*) Kurumsal  ( ) Teknik                |
-|  ( ) Pazarlama ( ) Kisa                  |
-|                                          |
-|  TERMINOLOJI SOZLUGU:                    |
-|  +--------------------------------------+|
-|  | Terim       | Korunan   | Kilit | CS ||
-|  |-------------|-----------|-------|----||
-|  | EasiDrive   | EasiDrive | [X]   | [X]||
-|  | VPI         | VPI       | [X]   | [X]||
-|  | gate vana   | gate vana | [X]   | [ ]||
-|  | Netherlocks | Netherlocks| [X]  | [X]||
-|  | ball valve  | kuresel vana| [ ] | [ ]||
-|  +--------------------------------------+|
-|  [X] = Kilitli (asla degismez)          |
-|  CS = Case Sensitive                     |
-|  [+ Yeni Terim Ekle]                    |
-|                                          |
-|  KAYNAK METIN:                           |
-|  +--------------------------------------+|
-|  | The VPI is a mechanical valve        ||
-|  | position indicator designed for...   ||
-|  +--------------------------------------+|
-|                                          |
-|  CEVIRI SONUCU:                          |
-|  +--------------------------------------+|
-|  | VPI, endustriyel vanalarin konum     ||
-|  | gostergesi olarak tasarlanmis        ||
-|  | mekanik bir cihazdır...              ||
-|  +--------------------------------------+|
-|                                          |
-|  [Cevir]  [Secili Alana Yapistir]       |
-+------------------------------------------+
-```
-
----
-
-### EKRAN 6: ARKA PLAN KALDIRMA — GUNCEL (Queue + Cache)
+### EKRAN - BACKUP/RESTORE
 ```
 +--------------------------------------------------+
-|         ARKA PLAN KALDIRMA                        |
+|         PROJE YEDEKLEME / GERI YUKLEME            |
 +--------------------------------------------------+
-|  +--------------------+  +--------------------+   |
-|  |    ORIJINAL        |  |    SONUC           |   |
-|  | [Urun fotografi]   |  | [Seffaf urun]     |   |
-|  +--------------------+  +--------------------+   |
 |                                                   |
-|  DURUM: [====  %75  ====] Isleniyor...           |
-|  (Onbellekten: Bu gorsel daha once islendi [X])  |
+|  YEDEKLE (Export):                                |
+|  Proje: [Sofis VPI Katalog v]                    |
+|  Icerik:                                         |
+|  [x] Proje verileri (sayfalar, icerik, layerlar) |
+|  [x] Tema ayarlari                               |
+|  [x] Terminoloji sozlugu                         |
+|  [x] Kullanilan asset'ler (goerseller, logolar)  |
+|  Tahmini boyut: ~4.2 MB                          |
+|  [ZIP Olarak Indir]                               |
 |                                                   |
-|  KENAR IYILESTIRME:                               |
-|  Edge Feathering:  [========50%=======]           |
-|                                                   |
-|  GOLGE EKLEME:                                    |
-|  [x] Yumusak golge ekle                          |
-|  Golge Yogunlugu: [========40%=======]            |
-|  Golge Yayilimi:  [========20px======]            |
-|                                                   |
-|  [Arka Plani Kaldir]     [Uygula & Kapat]        |
-+--------------------------------------------------+
-```
-
-**TEKNIK NOTU:**
-- BG removal job/queue ile calisir, progress bar gosterir
-- Sonuc asset hash bazli cache'lenir
-- Ayni gorsel tekrar yuklendignde cache'den aninda doner
-- Timeout: max 60 saniye
-
----
-
-### EKRAN 7: ASSET LIBRARY — GUNCEL (SVG Destegi)
-```
-+------------------------------------------------------------------+
-|  ASSET KUTUPHANESI                                          [X]   |
-+------------------------------------------------------------------+
-|  KATEGORILER:  [Tumunu Goster] [Logolar] [Ikonlar SVG]           |
-|                [Arka Planlar] [Urun Fotolari]                     |
-|  [Ara...]                              [+ Yeni Asset Yukle]       |
-|  Desteklenen formatlar: PNG, JPG, SVG                             |
-|                                                                    |
-|  +----------+  +----------+  +----------+  +----------+           |
-|  | [Logo]   |  | [SVG]    |  | [SVG]    |  | [Foto]   |          |
-|  | DEMART   |  | Vana     |  | Sensor   |  | VPI-A    |          |
-|  | logo.png |  | ikon.svg |  | ikon.svg |  | foto.jpg |          |
-|  | 45KB     |  | 4KB      |  | 3KB      |  | 1.2MB    |          |
-|  | [Kullan] |  | [Kullan] |  | [Kullan] |  | [Kullan] |          |
-|  +----------+  +----------+  +----------+  +----------+           |
-+------------------------------------------------------------------+
-```
-
----
-
-### EKRAN 8: BRAND/THEME AYARLARI
-```
-+--------------------------------------------------+
-|         TEMA / BRAND AYARLARI               [X]   |
-+--------------------------------------------------+
-|  HAZIR TEMALAR:                                   |
-|  +------------+ +------------+ +------------+     |
-|  | Demart     | | Dark Tech  | | Minimal    |     |
-|  | Corporate  | |            | | Premium    |     |
-|  | [Sec]      | | [Sec]      | | [Sec]      |     |
-|  +------------+ +------------+ +------------+     |
-|                                                   |
-|  RENK PALETI:                                     |
-|  Birincil:   [#004aad]   Ikincil:  [#003c8f]    |
-|  Vurgu:      [#f59e0b]   ArkaPlan: [#f8fafc]    |
-|  Metin:      [#0f172a]                            |
-|                                                   |
-|  FONT SETI: (Server'da bundle'li)                |
-|  Baslik:  [Montserrat v]                         |
-|  Govde:   [Open Sans v]                          |
-|  Vurgu:   [Roboto Condensed v]                   |
-|                                                   |
-|  [Tema Kaydet]  [Sifirla]  [Yeni Tema Olustur]  |
+|  GERI YUKLE (Import):                             |
+|  [ZIP Dosyasi Sec...]                             |
+|  Import secenekleri:                              |
+|  (*) Yeni proje olarak ekle                       |
+|  ( ) Mevcut projenin ustune yaz                   |
+|  [x] Tema ayarlarini da yukle                     |
+|  [x] Sozlugu de yukle                             |
+|  [x] Asset'leri de yukle                          |
+|  [Yukle & Geri Yukle]                             |
 +--------------------------------------------------+
 ```
 
 ---
 
-## 6. 10 SABLON DETAYLARI
+## 7. 10 SABLON
 
-| # | Sablon Adi | Layout | Hedef | Referans |
-|---|-----------|--------|-------|----------|
-| 1 | Industrial Product Alert | Diagonal clip-path: sol endustriyel foto, sag urun+baslik, alt CTA | Yeni urun duyurusu | Rosemount |
-| 2 | Event Poster | Tam gradient BG, buyuk baslik, tarih/konum ikonlari, sponsor logolari | Etkinlik/fuar | ENOSAD |
-| 3 | Minimal Premium | %70 beyaz alan, buyuk tipografi, ince cizgi, tek gorsel | Premium urun | - |
-| 4 | Tech Data Sheet | Logo+baslik, ozellik tablosu grid, urun gorseli, teknik notlar | Teknik dokuman | Netherlocks VPI |
-| 5 | Photo Dominant | Tam ekran HD gorsel, seffaf koyu overlay, beyaz baslik | Sosyal medya | - |
-| 6 | Geometric Corporate | Yatay serit/blok bolumler, her blokta farkli icerik | Kurumsal sunum | - |
-| 7 | Dark Tech | Koyu zemin, neon vurgu cizgiler, parlak baslik, glow efekti | Ileri teknoloji | - |
-| 8 | Clean Industrial Grid | 2x3/3x3 grid, ikon+fayda metni, ortada urun | Fayda ozeti | - |
-| 9 | Tebrik Karti | Festif BG, dekoratif cerceve, baslik+mesaj, logo+imza | Kutlama | - |
-| 10 | Taziye Karti | Sade koyu tonlar, ince bordur, saygin tipografi, logo+imza | Taziye | - |
-
----
-
-## 7. PDF KALITE GARANTISI
-
-**YASAK YONTEM (Kullanilmayacak):**
-- html-to-image + jsPDF (screenshot bazli, kalitesiz)
-
-**ZORUNLU YONTEM (Playwright Print-to-PDF):**
-```
-Ayni HTML/CSS Template --> Playwright Chromium --> page.pdf()
-                                |
-                     printBackground: true
-                     preferCSSPageSize: true
-                     @media print CSS
-                     Fontlar: server'da bundle'li
-                                |
-                           SONUC:
-                     - Metin secilebilir (vektor)
-                     - Font %100 gomulu
-                     - TR karakter sorunsuz
-                     - SVG ikonlar vektor
-                     - Layout 1:1 preview ile ayni
-                     - 300 DPI baski kalitesi
-```
+| # | Sablon | Layout | Kullanim | Referans |
+|---|--------|--------|----------|----------|
+| 1 | Industrial Product Alert | Diagonal clip-path, endustriyel foto+urun+CTA | Urun duyurusu | Rosemount |
+| 2 | Event Poster | Gradient BG, baslik, tarih/konum, sponsor logolari | Etkinlik | ENOSAD |
+| 3 | Minimal Premium | %70 beyaz, buyuk tipografi, tek gorsel | Premium urun | - |
+| 4 | Tech Data Sheet | Tablo grid, ozellikler, urun gorseli | Teknik dokuman | Netherlocks |
+| 5 | Photo Dominant | Tam ekran gorsel, seffaf overlay, baslik | Sosyal medya | - |
+| 6 | Geometric Corporate | Serit/blok bolumler, kurumsal renkler | Kurumsal | - |
+| 7 | Dark Tech | Koyu zemin, neon vurgu, glow efekti | Ileri teknoloji | - |
+| 8 | Clean Industrial Grid | Ikon+fayda grid, ortada urun | Fayda ozeti | - |
+| 9 | Tebrik Karti | Festif BG, dekoratif cerceve, logo+imza | Kutlama | - |
+| 10 | Taziye Karti | Koyu tonlar, ince bordur, saygin tipografi | Taziye | - |
 
 ---
 
-## 8. TEKNIK MIMARI
+## 8. PDF KALITE
+
+**YASAK:** html-to-image + jsPDF (screenshot bazli)
+
+**ZORUNLU:** Playwright Print-to-PDF
+- printBackground: true
+- preferCSSPageSize: true
+- Fontlar: server'da bundle'li, PDF'de gomulu
+- LOCAL calisir (internet gerekmez)
+
+---
+
+## 9. TEKNIK MIMARI (LOCAL-FIRST)
 
 ```
-+-------------------+         +-------------------+
-|   TARAYICI        |         |   SUNUCU          |
-|   (React App)     |  HTTP   |   (FastAPI)       |
-|                   | ------> |                   |
-|  AYNI HTML/CSS    |         |  AYNI HTML/CSS    |
-|  TEMPLATE ENGINE  |         |  TEMPLATE ENGINE  |
-|  (Preview)        |         |  (Export)         |
-|  + Draggable      |         |  + Playwright     |
-|    Overlay        |         |    Render         |
-+-------------------+         +-------------------+
-                                      |
-                    +---------+-------+---------+
-                    |         |       |         |
-                MongoDB  Playwright  rembg    Pillow
-                (veri)   (PDF/PNG)  (BG sil) (resize)
-                    |
-              Bundle Fonts
-              (server-side)
+KULLANICI PC (Docker Compose)
++----------------------------------------------------------+
+|                                                          |
+|  +-------------------+    +-------------------+          |
+|  |   Frontend        |    |   Backend         |          |
+|  |   React :3000     |--->|   FastAPI :8001    |          |
+|  |   (Tarayici)      |    |                   |          |
+|  +-------------------+    +---+---+---+---+---+          |
+|                               |   |   |   |              |
+|                          +----+   |   |   +----+         |
+|                          |        |   |        |         |
+|                     MongoDB  Playwright rembg  Pillow     |
+|                     :27017   (local)   (local) (local)   |
+|                          |                               |
+|                     mongo_data                            |
+|                     (volume)                              |
++----------------------------------------------------------+
+                               |
+                    (SADECE CEVIRMEN ICIN)
+                               |
+                         Internet
+                         LLM API
 ```
 
 ---
 
-## 9. TAM OZELLIK LISTESI
+## 10. PERFORMANS HEDEFLERI
 
-| # | Ozellik | Oncelik | Durum |
-|---|---------|---------|-------|
-| 1 | 10 farkli sablon | P0 | Yapilacak |
-| 2 | Playwright PDF export (metin secilebilir, font gomulu) | P0 | Yapilacak |
-| 3 | PNG/JPG export (6 preset + ozel boyut) | P0 | Yapilacak |
-| 4 | Editor: AYNI HTML/CSS pipeline (preview=export 1:1) | P0 | Yapilacak |
-| 5 | Layer yonetimi (siralama + kilitleme + gorunurluk) | P0 | Yapilacak |
-| 6 | Efektler: feather (layer bazli) + grain (global) + blend + shadow | P0 | Yapilacak |
-| 7 | Efektler preview=export birebir ayni | P0 | Yapilacak |
-| 8 | Background removal (queue + progress + cache) | P0 | Yapilacak |
-| 9 | JPEG/PNG resize (Lanczos + sharpen + EXIF) | P0 | Yapilacak |
-| 10 | Cevirmen (4 ton + terminoloji sozlugu + lock + case sensitive) | P0 | Yapilacak |
-| 11 | Tebrik karti modulu + hazir metinler | P0 | Yapilacak |
-| 12 | Taziye karti modulu + hazir metinler | P0 | Yapilacak |
-| 13 | Merkezi asset library (PNG + JPG + SVG) | P0 | Yapilacak |
-| 14 | Brand/Theme sistemi (renk paleti + font seti) | P0 | Yapilacak |
-| 15 | Batch export (ZIP + isimlendirme standardi) | P0 | Yapilacak |
-| 16 | Font bundle (server-side, PDF'de gomulu) | P0 | Yapilacak |
-| 17 | SVG ikon destegi (vektor, buyutmede bozulmaz) | P0 | Yapilacak |
-| 18 | Safe area / bleed overlay (editor rehberi) | P0 | Yapilacak |
-| 19 | Versioning / export gecmisi | P1 | Yapilacak |
-| 20 | Snap-to-grid hizalama | P1 | Yapilacak |
-| 21 | Web/High Quality export secenekleri | P0 | Yapilacak |
-| 22 | Proje kaydet/ac | P0 | Yapilacak |
+| Islem | Hedef Sure |
+|-------|-----------|
+| Tekli PDF export | < 5 sn |
+| Tekli PNG export | < 3 sn |
+| Tekli JPG export | < 2 sn |
+| Batch export (6 preset) | < 20 sn |
+| BG removal (ilk kez) | < 30 sn |
+| BG removal (cache) | < 1 sn |
+| Gorsel resize | < 2 sn |
+
+| Format | Yuksek Kalite | Web Optimize |
+|--------|--------------|--------------|
+| PDF A4 tek sayfa | 500KB-2MB | 200KB-500KB |
+| PNG 1080x1080 | 800KB-2MB | 200KB-400KB |
+| JPG 1080x1080 | 300KB-800KB | 80KB-200KB |
 
 ---
 
-## 10. TEKNIK GARANTILER OZETI
+## 11. TAM OZELLIK LISTESI
 
-1. **Editor preview ve export AYNI HTML/CSS render pipeline kullanir** (WYSIWYG 1:1 garanti)
-2. **Tum gorsel efektler (feather, grain, blend, shadow) preview ve export'ta BIREBIR ayni render edilir**
-3. **Background removal job/queue + progress + cache** (ayni asset tekrar calismaz)
-4. **Fontlar server'da bundle'li, PDF'de %100 gomulu/fallback'li**
-5. **SVG ikon destegi** (vektor kalite, buyutmede bozulmaz)
+| # | Ozellik | P |
+|---|---------|---|
+| 1 | 10 farkli sablon | P0 |
+| 2 | Playwright PDF (metin secilebilir, font gomulu, LOCAL) | P0 |
+| 3 | PNG/JPG export (6 preset + ozel boyut) | P0 |
+| 4 | Editor: AYNI HTML/CSS pipeline (preview=export 1:1) | P0 |
+| 5 | Layer yonetimi (siralama + kilitleme + gorunurluk) | P0 |
+| 6 | Efektler: feather + grain + blend + shadow (preview=export ayni) | P0 |
+| 7 | Background removal (queue + progress + cache, LOCAL) | P0 |
+| 8 | JPEG/PNG resize (Lanczos + sharpen + EXIF) | P0 |
+| 9 | Cevirmen (4 ton + sozluk + lock + case sensitive) | P0 |
+| 10 | Tebrik karti modulu + hazir metinler | P0 |
+| 11 | Taziye karti modulu + hazir metinler | P0 |
+| 12 | Merkezi asset library (PNG + JPG + SVG) | P0 |
+| 13 | Brand/Theme sistemi (renk + font seti) | P0 |
+| 14 | Batch export (ZIP + isimlendirme standardi) | P0 |
+| 15 | Font bundle (server-side, PDF gomulu, internetsiz) | P0 |
+| 16 | SVG ikon destegi (vektor) | P0 |
+| 17 | Safe area / bleed overlay | P0 |
+| 18 | Web Optimize / High Quality export secenekleri | P0 |
+| 19 | Proje kaydet/ac | P0 |
+| 20 | Project backup/restore (JSON/ZIP export & import) | P0 |
+| 21 | Export gecmisi + versioning | P1 |
+| 22 | Snap-to-grid hizalama | P1 |
+| 23 | Local-first mimari (internetsiz PDF/PNG/JPG) | P0 |
+| 24 | Export performans hedefleri (PDF<5sn, PNG<3sn) | P0 |
+| 25 | Dosya boyutu optimizasyonu (Web vs High Quality) | P0 |
 
 ---
 
-## 11. HARIC OLAN (Scope Disi)
+## 12. TEKNIK GARANTILER
 
-- Windows EXE
-- Electron paketleme
-- Offline calisma
+1. Editor preview ve export AYNI HTML/CSS render pipeline (1:1)
+2. Tum efektler preview ve export'ta BIREBIR ayni
+3. BG removal: queue + progress + cache
+4. Fontlar server bundle, PDF gomulu, internetsiz
+5. SVG vektor destegi
+6. LOCAL-FIRST: internet olmadan PDF/PNG/JPG export
+7. Project backup/restore: proje+tema+sozluk+asset ZIP
+
+---
+
+## 13. HARIC (Scope Disi)
+
+- Windows EXE / Electron
+- Offline ceviri (LLM API gerektirir)
 - Video export
+- Photoshop seviyesi pixel-perfect kompozisyon
 
 ---
 
-## 12. SONRAKI ADIM
+## 14. SONRAKI ADIM
 
 Bu rapor onaylandiginda kodlamaya baslanacak.
