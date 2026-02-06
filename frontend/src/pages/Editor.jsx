@@ -517,8 +517,9 @@ export default function Editor() {
 
       {/* Template Dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto" data-testid="template-dialog">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto" data-testid="template-dialog" aria-describedby="template-desc">
           <DialogHeader><DialogTitle>Sablon Sec</DialogTitle></DialogHeader>
+          <p id="template-desc" className="sr-only">Sayfa icin sablon secin</p>
           <div className="flex gap-2 mb-4 flex-wrap">{TEMPLATE_CATEGORIES.map(cat => (
             <Button key={cat.id} variant={templateCategory === cat.id ? "default" : "outline"} size="sm" onClick={() => setTemplateCategory(cat.id)}>{cat.name}</Button>
           ))}</div>
