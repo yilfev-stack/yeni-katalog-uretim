@@ -53,10 +53,28 @@ async def get_browser():
     global _browser, _playwright
     if _browser is None or not _browser.is_connected():
         _playwright = await async_playwright().start()
-        _browser = await _playwright.chromium.launch(
-            executable_path='/pw-browsers/chromium-1208/chrome-linux/chrome',
-            args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-        )
+        # Auto-detect Chromium path
+        import shutil
+        chrome_path = None
+        candidates = [
+            '/pw-browsers/chromium-1208/chrome-linux/chrome',
+            shutil.which('chromium-browser'),
+            shutil.which('chromium'),
+            shutil.which('google-chrome'),
+        ]
+        # Also search playwright's default locations
+        import glob
+        candidates += glob.glob('/root/.cache/ms-playwright/chromium*/chrome-linux/chrome')
+        candidates += glob.glob('/root/.cache/ms-playwright/chromium*/chrome-linux/headless_shell')
+        for c in candidates:
+            if c and os.path.isfile(c):
+                chrome_path = c
+                break
+        launch_args = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+        if chrome_path:
+            _browser = await _playwright.chromium.launch(executable_path=chrome_path, args=launch_args)
+        else:
+            _browser = await _playwright.chromium.launch(args=launch_args)
     return _browser
 
 async def render_html_to_pdf(html_content: str, width_mm: int = 210, height_mm: int = 297, landscape: bool = False) -> bytes:
