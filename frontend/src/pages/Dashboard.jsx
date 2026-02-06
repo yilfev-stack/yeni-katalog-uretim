@@ -4,15 +4,14 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  Search, Plus, FileText, Copy, Trash2, Tag, Filter, Heart, Download,
-  Upload, FolderOpen, Palette, BookOpen, LayoutGrid, ArrowRight
+  Search, Plus, FileText, Copy, Trash2, Tag, Heart, Download,
+  Upload, BookOpen, LayoutGrid, ArrowRight, FolderOpen, Clock, Layers
 } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -21,11 +20,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState([]);
   const [cards, setCards] = useState([]);
-  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTag, setSelectedTag] = useState("");
   const [tags, setTags] = useState([]);
+  const [selectedTag, setSelectedTag] = useState("");
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showNewCardDialog, setShowNewCardDialog] = useState(false);
   const [newCatalog, setNewCatalog] = useState({ name: "", product_name: "", tags: [] });
@@ -38,24 +36,16 @@ export default function Dashboard() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (searchTerm) params.append("search", searchTerm);
-      if (selectedTag) params.append("tag", selectedTag);
-      const [catRes, cardRes, assetRes, tagRes] = await Promise.all([
-        axios.get(`${API}/catalogs?${params}`),
+      const [catRes, cardRes, tagRes] = await Promise.all([
+        axios.get(`${API}/catalogs${searchTerm ? `?search=${searchTerm}` : ''}${selectedTag ? `${searchTerm ? '&' : '?'}tag=${selectedTag}` : ''}`),
         axios.get(`${API}/cards`),
-        axios.get(`${API}/assets`),
         axios.get(`${API}/tags`).catch(() => ({ data: [] }))
       ]);
       setCatalogs(catRes.data);
       setCards(cardRes.data);
-      setAssets(assetRes.data);
       setTags(tagRes.data);
-    } catch (error) {
-      toast.error("Veriler yuklenemedi");
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error("Veriler yuklenemedi"); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchAll(); }, [searchTerm, selectedTag]);
@@ -68,7 +58,7 @@ export default function Dashboard() {
       setShowNewDialog(false);
       setNewCatalog({ name: "", product_name: "", tags: [] });
       navigate(`/editor/${res.data.id}`);
-    } catch { toast.error("Katalog olusturulamadi"); }
+    } catch { toast.error("Olusturulamadi"); }
   };
 
   const handleCreateCard = async () => {
@@ -79,7 +69,7 @@ export default function Dashboard() {
       setShowNewCardDialog(false);
       setNewCardName("");
       navigate(`/cards/${res.data.id}`);
-    } catch { toast.error("Kart olusturulamadi"); }
+    } catch { toast.error("Olusturulamadi"); }
   };
 
   const handleDelete = async () => {
@@ -89,18 +79,8 @@ export default function Dashboard() {
       else await axios.delete(`${API}/cards/${deleteTarget.id}`);
       toast.success("Silindi");
       setShowDeleteDialog(false);
-      setDeleteTarget(null);
       fetchAll();
     } catch { toast.error("Silinemedi"); }
-  };
-
-  const handleDuplicate = async (id, type, e) => {
-    e.stopPropagation();
-    try {
-      if (type === 'catalog') await axios.post(`${API}/catalogs/${id}/duplicate`);
-      toast.success("Kopyalandi");
-      fetchAll();
-    } catch { toast.error("Kopyalanamadi"); }
   };
 
   const handleBackupExport = async (id, e) => {
@@ -108,12 +88,8 @@ export default function Dashboard() {
     try {
       const res = await axios.post(`${API}/backup/export/${id}`, null, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `backup_${id}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const a = document.createElement('a'); a.href = url; a.download = `backup_${id}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
       toast.success("Yedek indirildi");
     } catch { toast.error("Yedek alinamadi"); }
   };
@@ -121,14 +97,9 @@ export default function Dashboard() {
   const handleBackupImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('mode', 'new');
-    try {
-      await axios.post(`${API}/backup/import`, formData);
-      toast.success("Proje yuklendi");
-      fetchAll();
-    } catch { toast.error("Proje yuklenemedi"); }
+    const fd = new FormData(); fd.append('file', file); fd.append('mode', 'new');
+    try { await axios.post(`${API}/backup/import`, fd); toast.success("Proje yuklendi"); fetchAll(); }
+    catch { toast.error("Yuklenemedi"); }
   };
 
   const formatDate = (d) => new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
@@ -136,65 +107,70 @@ export default function Dashboard() {
   const condolenceCards = cards.filter(c => c.card_type === 'condolence');
 
   return (
-    <div className="min-h-screen bg-slate-50" data-testid="dashboard">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src="https://customer-assets.emergentagent.com/job_ffb90a8b-8cf3-4732-bc1d-c708d6edf43e/artifacts/ruhmwlf7_logo%20sosn.jpg" alt="DEMART" className="h-10 object-contain" />
-              <div>
-                <h1 className="text-lg font-bold text-slate-900" style={{fontFamily:'Montserrat,sans-serif'}}>PRO CREATIVE STUDIO</h1>
-                <p className="text-xs text-slate-500">Sofis Urun Katalog & Kart Yonetimi</p>
-              </div>
+    <div className="min-h-screen bg-[#09090b] text-zinc-100" data-testid="dashboard">
+      {/* Header */}
+      <header className="border-b border-zinc-800 bg-[#09090b]/95 backdrop-blur-md sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-9 h-9 bg-[#004aad] rounded flex items-center justify-center">
+              <Layers className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center gap-2">
-              <label className="cursor-pointer">
-                <input type="file" accept=".zip" onChange={handleBackupImport} className="hidden" data-testid="import-backup-input" />
-                <Button variant="outline" size="sm" asChild><span><Upload className="w-4 h-4 mr-1" /> Proje Yukle</span></Button>
-              </label>
-              <Button size="sm" className="bg-[#004aad] hover:bg-[#003c8f]" onClick={() => setShowNewDialog(true)} data-testid="new-catalog-btn">
-                <Plus className="w-4 h-4 mr-1" /> Yeni Katalog
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowNewCardDialog(true)} data-testid="new-card-btn">
-                <Heart className="w-4 h-4 mr-1" /> Yeni Kart
-              </Button>
+            <div>
+              <h1 className="text-base font-bold tracking-tight" style={{fontFamily:'Inter,sans-serif'}}>PRO CREATIVE STUDIO</h1>
+              <p className="text-[11px] text-zinc-500">Demart - Katalog Uretim</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="cursor-pointer">
+              <input type="file" accept=".zip" onChange={handleBackupImport} className="hidden" data-testid="import-backup-input" />
+              <Button variant="outline" size="sm" className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300" asChild>
+                <span><Upload className="w-3.5 h-3.5 mr-1.5" />Proje Yukle</span>
+              </Button>
+            </label>
+            <Button size="sm" className="h-8 text-xs bg-[#004aad] hover:bg-[#003d8f]" onClick={() => setShowNewDialog(true)} data-testid="new-catalog-btn">
+              <Plus className="w-3.5 h-3.5 mr-1.5" />Yeni Katalog
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300" onClick={() => setShowNewCardDialog(true)} data-testid="new-card-btn">
+              <Heart className="w-3.5 h-3.5 mr-1.5" />Yeni Kart
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setActiveTab("catalogs")} data-testid="stat-catalogs">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><FileText className="w-5 h-5 text-blue-600" /></div>
-              <div><p className="text-2xl font-bold text-slate-900">{catalogs.length}</p><p className="text-xs text-slate-500">Katalog</p></div>
-            </CardContent>
-          </Card>
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setActiveTab("greeting")} data-testid="stat-greeting">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><Heart className="w-5 h-5 text-green-600" /></div>
-              <div><p className="text-2xl font-bold text-slate-900">{greetingCards.length}</p><p className="text-xs text-slate-500">Tebrik Karti</p></div>
-            </CardContent>
-          </Card>
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setActiveTab("condolence")} data-testid="stat-condolence">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center"><BookOpen className="w-5 h-5 text-slate-600" /></div>
-              <div><p className="text-2xl font-bold text-slate-900">{condolenceCards.length}</p><p className="text-xs text-slate-500">Taziye Karti</p></div>
-            </CardContent>
-          </Card>
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {[
+            { icon: FileText, label: "Katalog", count: catalogs.length, color: "#004aad", tab: "catalogs" },
+            { icon: Heart, label: "Tebrik Karti", count: greetingCards.length, color: "#10b981", tab: "greeting" },
+            { icon: BookOpen, label: "Taziye Karti", count: condolenceCards.length, color: "#64748b", tab: "condolence" }
+          ].map(s => (
+            <button key={s.tab} onClick={() => setActiveTab(s.tab)}
+              className={`p-5 rounded-lg border transition-all text-left ${activeTab === s.tab ? 'border-[#004aad]/50 bg-[#004aad]/8' : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'}`}
+              data-testid={`stat-${s.tab}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ backgroundColor: `${s.color}20` }}>
+                  <s.icon className="w-4 h-4" style={{ color: s.color }} />
+                </div>
+                <span className="text-3xl font-bold text-zinc-100">{s.count}</span>
+              </div>
+              <p className="text-xs text-zinc-500 font-medium">{s.label}</p>
+            </button>
+          ))}
         </div>
 
-        {/* Search */}
-        <div className="bg-white rounded-lg border p-3 mb-6 flex gap-3 items-center">
+        {/* Search Bar */}
+        <div className="flex gap-3 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input placeholder="Ara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" data-testid="search-input" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Proje ara..."
+              className="pl-10 h-9 bg-zinc-900 border-zinc-800 text-zinc-200 placeholder:text-zinc-600 focus:border-[#004aad]" data-testid="search-input" />
           </div>
           <Select value={selectedTag || "all"} onValueChange={(v) => setSelectedTag(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-[160px]" data-testid="tag-filter"><Tag className="w-4 h-4 mr-2 text-slate-400" /><SelectValue placeholder="Etiket" /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className="w-[150px] h-9 bg-zinc-900 border-zinc-800 text-zinc-300" data-testid="tag-filter">
+              <Tag className="w-3.5 h-3.5 mr-1.5 text-zinc-500" /><SelectValue placeholder="Etiket" />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-900 border-zinc-800">
               <SelectItem value="all">Tumunu Goster</SelectItem>
               {tags.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
             </SelectContent>
@@ -203,102 +179,95 @@ export default function Dashboard() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="catalogs" data-testid="tab-catalogs">Kataloglar</TabsTrigger>
-            <TabsTrigger value="greeting" data-testid="tab-greeting">Tebrik Kartlari</TabsTrigger>
-            <TabsTrigger value="condolence" data-testid="tab-condolence">Taziye Kartlari</TabsTrigger>
+          <TabsList className="bg-zinc-900 border border-zinc-800 mb-6">
+            <TabsTrigger value="catalogs" className="data-[state=active]:bg-[#004aad] data-[state=active]:text-white text-zinc-400" data-testid="tab-catalogs">Kataloglar</TabsTrigger>
+            <TabsTrigger value="greeting" className="data-[state=active]:bg-[#004aad] data-[state=active]:text-white text-zinc-400" data-testid="tab-greeting">Tebrik Kartlari</TabsTrigger>
+            <TabsTrigger value="condolence" className="data-[state=active]:bg-[#004aad] data-[state=active]:text-white text-zinc-400" data-testid="tab-condolence">Taziye Kartlari</TabsTrigger>
           </TabsList>
 
           <TabsContent value="catalogs">
             {loading ? <div className="flex justify-center py-16"><div className="animate-spin w-8 h-8 border-4 border-[#004aad] border-t-transparent rounded-full"></div></div> :
             catalogs.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-lg border"><FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 mb-4">Henuz katalog yok</p>
-                <Button className="bg-[#004aad]" onClick={() => setShowNewDialog(true)}><Plus className="w-4 h-4 mr-2" />Ilk Katalogunuzu Olusturun</Button></div>
+              <div className="text-center py-20 border border-dashed border-zinc-800 rounded-lg">
+                <div className="w-16 h-16 rounded-xl bg-zinc-900 flex items-center justify-center mx-auto mb-4"><FileText className="w-8 h-8 text-zinc-600" /></div>
+                <p className="text-zinc-400 mb-4">Henuz proje yok</p>
+                <Button className="bg-[#004aad] hover:bg-[#003d8f]" onClick={() => setShowNewDialog(true)}><Plus className="w-4 h-4 mr-2" />Ilk Katalogunuzu Olusturun</Button>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="catalog-list">
                 {catalogs.map(cat => (
-                  <Card key={cat.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/editor/${cat.id}`)} data-testid={`catalog-${cat.id}`}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base truncate">{cat.name}</CardTitle>
-                          <CardDescription className="text-sm truncate">{cat.product_name || "Urun belirtilmemis"}</CardDescription>
-                        </div>
-                        <div className="flex gap-1 ml-2">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleBackupExport(cat.id, e)} data-testid={`backup-${cat.id}`}><Download className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleDuplicate(cat.id, 'catalog', e)}><Copy className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={(e) => { e.stopPropagation(); setDeleteTarget({id:cat.id,type:'catalog'}); setShowDeleteDialog(true); }}><Trash2 className="w-3.5 h-3.5" /></Button>
-                        </div>
+                  <div key={cat.id} className="group border border-zinc-800 bg-zinc-900/50 rounded-lg p-4 cursor-pointer hover:border-zinc-700 hover:bg-zinc-900 transition-all"
+                    onClick={() => navigate(`/editor/${cat.id}`)} data-testid={`catalog-${cat.id}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm text-zinc-100 truncate">{cat.name}</h3>
+                        <p className="text-xs text-zinc-500 truncate mt-0.5">{cat.product_name || "Urun belirtilmemis"}</p>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-3 text-sm text-slate-500 mb-2">
-                        <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{cat.pages?.length || 0} sayfa</span>
-                        <span>v{cat.version || 1}</span>
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                        <button className="p-1.5 rounded hover:bg-zinc-800" onClick={(e) => handleBackupExport(cat.id, e)}><Download className="w-3.5 h-3.5 text-zinc-500" /></button>
+                        <button className="p-1.5 rounded hover:bg-zinc-800" onClick={(e) => { e.stopPropagation(); setDeleteTarget({id:cat.id,type:'catalog'}); setShowDeleteDialog(true); }}>
+                          <Trash2 className="w-3.5 h-3.5 text-red-500/70" />
+                        </button>
                       </div>
-                      {cat.tags?.length > 0 && <div className="flex flex-wrap gap-1 mb-2">{cat.tags.map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}</div>}
-                      <p className="text-xs text-slate-400">{formatDate(cat.updated_at)}</p>
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-zinc-500 mb-2">
+                      <span className="flex items-center gap-1"><Layers className="w-3 h-3" />{cat.pages?.length || 0} sayfa</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(cat.updated_at)}</span>
+                    </div>
+                    {cat.tags?.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">{cat.tags.map(t => <span key={t} className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[10px] rounded">{t}</span>)}</div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="greeting">
-            {greetingCards.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-lg border"><Heart className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 mb-4">Henuz tebrik karti yok</p>
-                <Button variant="outline" onClick={() => { setNewCardType("greeting"); setShowNewCardDialog(true); }}><Plus className="w-4 h-4 mr-2" />Tebrik Karti Olustur</Button></div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {greetingCards.map(card => (
-                  <Card key={card.id} className="cursor-pointer hover:shadow-md" onClick={() => navigate(`/cards/${card.id}`)}>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between"><CardTitle className="text-base">{card.name}</CardTitle>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={(e) => { e.stopPropagation(); setDeleteTarget({id:card.id,type:'card'}); setShowDeleteDialog(true); }}><Trash2 className="w-3.5 h-3.5" /></Button>
+          {['greeting', 'condolence'].map(type => (
+            <TabsContent key={type} value={type}>
+              {(type === 'greeting' ? greetingCards : condolenceCards).length === 0 ? (
+                <div className="text-center py-20 border border-dashed border-zinc-800 rounded-lg">
+                  <div className="w-16 h-16 rounded-xl bg-zinc-900 flex items-center justify-center mx-auto mb-4">
+                    {type === 'greeting' ? <Heart className="w-8 h-8 text-zinc-600" /> : <BookOpen className="w-8 h-8 text-zinc-600" />}
+                  </div>
+                  <p className="text-zinc-400 mb-4">Henuz kart yok</p>
+                  <Button variant="outline" className="border-zinc-700" onClick={() => { setNewCardType(type); setShowNewCardDialog(true); }}>
+                    <Plus className="w-4 h-4 mr-2" />{type === 'greeting' ? 'Tebrik' : 'Taziye'} Karti Olustur
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(type === 'greeting' ? greetingCards : condolenceCards).map(card => (
+                    <div key={card.id} className="group border border-zinc-800 bg-zinc-900/50 rounded-lg p-4 cursor-pointer hover:border-zinc-700 transition-all"
+                      onClick={() => navigate(`/cards/${card.id}`)}>
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-medium text-sm text-zinc-100">{card.name}</h3>
+                        <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-zinc-800" onClick={(e) => { e.stopPropagation(); setDeleteTarget({id:card.id,type:'card'}); setShowDeleteDialog(true); }}>
+                          <Trash2 className="w-3.5 h-3.5 text-red-500/70" />
+                        </button>
                       </div>
-                    </CardHeader>
-                    <CardContent><p className="text-xs text-slate-400">{formatDate(card.updated_at)}</p></CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="condolence">
-            {condolenceCards.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-lg border"><BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 mb-4">Henuz taziye karti yok</p>
-                <Button variant="outline" onClick={() => { setNewCardType("condolence"); setShowNewCardDialog(true); }}><Plus className="w-4 h-4 mr-2" />Taziye Karti Olustur</Button></div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {condolenceCards.map(card => (
-                  <Card key={card.id} className="cursor-pointer hover:shadow-md" onClick={() => navigate(`/cards/${card.id}`)}>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between"><CardTitle className="text-base">{card.name}</CardTitle>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={(e) => { e.stopPropagation(); setDeleteTarget({id:card.id,type:'card'}); setShowDeleteDialog(true); }}><Trash2 className="w-3.5 h-3.5" /></Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent><p className="text-xs text-slate-400">{formatDate(card.updated_at)}</p></CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+                      <p className="text-xs text-zinc-500 mt-1">{formatDate(card.updated_at)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          ))}
         </Tabs>
       </main>
 
       {/* New Catalog Dialog */}
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-        <DialogContent data-testid="new-catalog-dialog" aria-describedby="new-catalog-desc">
-          <DialogHeader><DialogTitle>Yeni Katalog Olustur</DialogTitle></DialogHeader>
-          <p id="new-catalog-desc" className="sr-only">Yeni katalog olusturmak icin bilgileri girin</p>
-          <div className="space-y-4 py-2">
-            <div><Label>Katalog Adi *</Label><Input value={newCatalog.name} onChange={(e) => setNewCatalog({...newCatalog, name: e.target.value})} placeholder="Sofis 2026 Urun Katalogu" data-testid="input-catalog-name" /></div>
-            <div><Label>Urun Adi</Label><Input value={newCatalog.product_name} onChange={(e) => setNewCatalog({...newCatalog, product_name: e.target.value})} placeholder="SOFIS VPI-A Series" data-testid="input-product-name" /></div>
-            <div><Label>Etiketler (virgul ile)</Label><Input value={newCatalog.tags.join(", ")} onChange={(e) => setNewCatalog({...newCatalog, tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean)})} placeholder="endustriyel, 2026, vana" /></div>
+        <DialogContent className="bg-zinc-900 border-zinc-800" aria-describedby="new-cat-d" data-testid="new-catalog-dialog">
+          <DialogHeader><DialogTitle className="text-zinc-100">Yeni Katalog</DialogTitle></DialogHeader>
+          <p id="new-cat-d" className="sr-only">Yeni katalog bilgileri</p>
+          <div className="space-y-3 py-2">
+            <div><Label className="text-xs text-zinc-400">Katalog Adi *</Label><Input value={newCatalog.name} onChange={(e) => setNewCatalog({...newCatalog, name:e.target.value})} placeholder="Sofis 2026 Katalogu" className="bg-zinc-800 border-zinc-700 text-zinc-100" data-testid="input-catalog-name" /></div>
+            <div><Label className="text-xs text-zinc-400">Urun Adi</Label><Input value={newCatalog.product_name} onChange={(e) => setNewCatalog({...newCatalog, product_name:e.target.value})} placeholder="VPI-A Series" className="bg-zinc-800 border-zinc-700 text-zinc-100" data-testid="input-product-name" /></div>
+            <div><Label className="text-xs text-zinc-400">Etiketler</Label><Input value={newCatalog.tags.join(", ")} onChange={(e) => setNewCatalog({...newCatalog, tags:e.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} placeholder="endustriyel, vana" className="bg-zinc-800 border-zinc-700 text-zinc-100" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewDialog(false)}>Iptal</Button>
+            <Button variant="outline" onClick={() => setShowNewDialog(false)} className="border-zinc-700 text-zinc-300">Iptal</Button>
             <Button className="bg-[#004aad]" onClick={handleCreateCatalog} data-testid="create-catalog-btn">Olustur</Button>
           </DialogFooter>
         </DialogContent>
@@ -306,23 +275,20 @@ export default function Dashboard() {
 
       {/* New Card Dialog */}
       <Dialog open={showNewCardDialog} onOpenChange={setShowNewCardDialog}>
-        <DialogContent data-testid="new-card-dialog" aria-describedby="new-card-desc">
-          <DialogHeader><DialogTitle>Yeni Kart Olustur</DialogTitle></DialogHeader>
-          <p id="new-card-desc" className="sr-only">Yeni kart olusturmak icin bilgileri girin</p>
-          <div className="space-y-4 py-2">
-            <div><Label>Kart Adi *</Label><Input value={newCardName} onChange={(e) => setNewCardName(e.target.value)} placeholder="Yilbasi Tebrik Karti" data-testid="input-card-name" /></div>
-            <div><Label>Kart Turu</Label>
+        <DialogContent className="bg-zinc-900 border-zinc-800" aria-describedby="new-card-d" data-testid="new-card-dialog">
+          <DialogHeader><DialogTitle className="text-zinc-100">Yeni Kart</DialogTitle></DialogHeader>
+          <p id="new-card-d" className="sr-only">Yeni kart bilgileri</p>
+          <div className="space-y-3 py-2">
+            <div><Label className="text-xs text-zinc-400">Kart Adi *</Label><Input value={newCardName} onChange={(e) => setNewCardName(e.target.value)} placeholder="Yilbasi Tebrik" className="bg-zinc-800 border-zinc-700 text-zinc-100" data-testid="input-card-name" /></div>
+            <div><Label className="text-xs text-zinc-400">Tur</Label>
               <Select value={newCardType} onValueChange={setNewCardType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="greeting">Tebrik Karti</SelectItem>
-                  <SelectItem value="condolence">Taziye Karti</SelectItem>
-                </SelectContent>
+                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="greeting">Tebrik</SelectItem><SelectItem value="condolence">Taziye</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewCardDialog(false)}>Iptal</Button>
+            <Button variant="outline" onClick={() => setShowNewCardDialog(false)} className="border-zinc-700 text-zinc-300">Iptal</Button>
             <Button className="bg-[#004aad]" onClick={handleCreateCard} data-testid="create-card-btn">Olustur</Button>
           </DialogFooter>
         </DialogContent>
@@ -330,9 +296,13 @@ export default function Dashboard() {
 
       {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent aria-describedby="delete-desc"><DialogHeader><DialogTitle>Silmek istediginizden emin misiniz?</DialogTitle></DialogHeader>
-          <p id="delete-desc" className="text-slate-600 py-2">Bu islem geri alinamaz.</p>
-          <DialogFooter><Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Iptal</Button><Button variant="destructive" onClick={handleDelete} data-testid="confirm-delete">Sil</Button></DialogFooter>
+        <DialogContent className="bg-zinc-900 border-zinc-800" aria-describedby="del-d">
+          <DialogHeader><DialogTitle className="text-zinc-100">Silmek istediginizden emin misiniz?</DialogTitle></DialogHeader>
+          <p id="del-d" className="text-zinc-400 text-sm py-2">Bu islem geri alinamaz.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-zinc-700 text-zinc-300">Iptal</Button>
+            <Button variant="destructive" onClick={handleDelete} data-testid="confirm-delete">Sil</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
