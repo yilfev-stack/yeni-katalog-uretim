@@ -2,14 +2,15 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile 2>/dev/null || yarn install
+COPY package.json ./
+COPY yarn.lock* ./
+RUN yarn install || npm install
 
-ARG REACT_APP_BACKEND_URL=http://localhost:8001
+ARG REACT_APP_BACKEND_URL=
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 
 COPY . .
-RUN yarn build
+RUN yarn build || npm run build
 
 FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
