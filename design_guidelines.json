@@ -1,0 +1,170 @@
+{
+  "identity": {
+    "name": "Pro Creative Studio",
+    "persona": "The Industrial Architect",
+    "tone": "Precision, Engineering, Professional, High-End",
+    "theme_mode": "dark",
+    "primary_color": "#004aad",
+    "primary_color_foreground": "#ffffff"
+  },
+  "typography": {
+    "font_family_heading": "Inter, sans-serif",
+    "font_family_body": "Inter, sans-serif",
+    "font_family_mono": "JetBrains Mono, monospace",
+    "scale": {
+      "xs": "0.7rem",
+      "sm": "0.8rem",
+      "base": "0.9rem",
+      "lg": "1.125rem",
+      "xl": "1.25rem",
+      "2xl": "1.5rem",
+      "3xl": "1.875rem",
+      "4xl": "2.25rem"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "DEFAULT": "#004aad",
+        "foreground": "#ffffff",
+        "hover": "#003d8f",
+        "active": "#00337a",
+        "light": "#3b82f6"
+      },
+      "background": {
+        "dashboard": "#09090b",
+        "editor_canvas": "#121212",
+        "editor_panel": "#18181b",
+        "card": "#18181b"
+      },
+      "text": {
+        "primary": "#f4f4f5",
+        "secondary": "#a1a1aa",
+        "muted": "#71717a"
+      },
+      "border": {
+        "DEFAULT": "#27272a",
+        "hover": "#3f3f46"
+      },
+      "status": {
+        "success": "#10b981",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "info": "#3b82f6"
+      }
+    }
+  },
+  "layout_strategy": {
+    "dashboard": {
+      "type": "bento_grid",
+      "grid_cols": 12,
+      "gap": 6,
+      "spacing_scale": "generous"
+    },
+    "editor": {
+      "type": "three_panel",
+      "left_sidebar_width": "64px",
+      "right_panel_width": "280px",
+      "header_height": "56px"
+    }
+  },
+  "component_guidelines": {
+    "buttons": {
+      "style": "flat_geometric",
+      "border_radius": "4px",
+      "padding": "px-4 py-2",
+      "text_transform": "none",
+      "font_weight": "500",
+      "hover_effect": "brightness-110"
+    },
+    "cards": {
+      "style": "minimal_border",
+      "bg": "bg-card",
+      "border": "border border-border",
+      "shadow": "none",
+      "hover_effect": "border-primary/50 transition-colors"
+    },
+    "inputs": {
+      "style": "dense",
+      "bg": "bg-secondary/50",
+      "border": "border-transparent focus:border-primary",
+      "height": "h-8",
+      "font_size": "text-xs"
+    },
+    "modals": {
+      "backdrop_blur": "blur-sm",
+      "border_radius": "lg",
+      "animation": "scale-in"
+    }
+  },
+  "assets": {
+    "images": [
+      {
+        "category": "asset_library_mockup",
+        "url": "https://images.unsplash.com/photo-1725916631380-fe85ea5ccd56?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwxfHxpbmR1c3RyaWFsJTIwdmFsdmUlMjBlbmdpbmVlcmluZyUyMGJsdWVwcmludHxlbnwwfHx8fDE3NzAzOTIxNjJ8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Vintage valve blueprint for asset library thumbnail"
+      },
+      {
+        "category": "canvas_default",
+        "url": "https://images.unsplash.com/photo-1725916631310-4d7cdf815079?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwyfHxpbmR1c3RyaWFsJTIwdmFsdmUlMjBlbmdpbmVlcmluZyUyMGJsdWVwcmludHxlbnwwfHx8fDE3NzAzOTIxNjJ8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Motor pump schematic for default canvas content"
+      },
+      {
+        "category": "template_preview_1",
+        "url": "https://images.unsplash.com/photo-1725916631373-23184b9b9170?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwzfHxpbmR1c3RyaWFsJTIwdmFsdmUlMjBlbmdpbmVlcmluZyUyMGJsdWVwcmludHxlbnwwfHx8fDE3NzAzOTIxNjJ8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Transmission schematic for template preview"
+      }
+    ],
+    "icons": {
+      "library": "lucide-react",
+      "preferred_set": "technical"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": {
+      "enabled": true,
+      "usage": "overlays, floating_panels",
+      "blur_strength": "backdrop-blur-md",
+      "opacity": "bg-background/80"
+    },
+    "gradients": {
+      "enabled": false,
+      "note": "Avoid gradients. Use solid, high-contrast colors for precision feel."
+    },
+    "motion": {
+      "enabled": true,
+      "library": "framer-motion",
+      "defaults": {
+        "duration": 0.2,
+        "ease": "easeInOut"
+      }
+    }
+  },
+  "specific_instructions_to_main_agent": [
+    "FORCE DARK MODE: Set the entire app to dark mode by default. The root div should have the 'dark' class.",
+    "DENSITY: In the Editor view, use 'dense' spacing. Reduce padding on inputs and buttons to 'p-1' or 'p-2' to mimic Figma/Adobe properties panels.",
+    "CANVAS BACKGROUND: Use a dot grid pattern on a dark gray background (#1e1e1e) for the canvas area to give it an engineering feel.",
+    "SIDEBAR: collapse the left sidebar to icons only by default to maximize canvas space.",
+    "PROPERTY PANEL: Organize into Collapsible Sections (Typography, Layout, Appearance).",
+    "TYPOGRAPHY CONTROLS: For the font selector, use a visual preview if possible, but keep the dropdown compact.",
+    "ASSET LIBRARY: Use the provided blueprint images as thumbnails in the asset library.",
+    "COLOR PICKER: Ensure the color picker component fits within the dark theme (no white borders).",
+    "PROJECT CARDS: On the dashboard, use the 'Bento' grid layout. The 'Recent Project' card should be large (col-span-2 or col-span-3).",
+    "EMPTY STATES: Use technical/blueprint iconography for empty states, not playful illustrations."
+  ],
+  "universal_guidelines": [
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy",
+    "Use glass-morphism effects with backdrop filters (12-24px blur)",
+    "You MUST NOT apply universal transition. Eg: transition: all.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; }",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations",
+    "NEVER use AI assistant Emoji characters like 🤖 etc.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable (except in the Editor panels where density is key).",
+    "Prioritize using pre-existing components from src/components/ui.",
+    "Components MUST use named exports.",
+    "Use sonner for toasts."
+  ]
+}
