@@ -330,8 +330,8 @@ export default function Dashboard() {
 
       {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent><DialogHeader><DialogTitle>Silmek istediginizden emin misiniz?</DialogTitle></DialogHeader>
-          <p className="text-slate-600 py-2">Bu islem geri alinamaz.</p>
+        <DialogContent aria-describedby="delete-desc"><DialogHeader><DialogTitle>Silmek istediginizden emin misiniz?</DialogTitle></DialogHeader>
+          <p id="delete-desc" className="text-slate-600 py-2">Bu islem geri alinamaz.</p>
           <DialogFooter><Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Iptal</Button><Button variant="destructive" onClick={handleDelete} data-testid="confirm-delete">Sil</Button></DialogFooter>
         </DialogContent>
       </Dialog>
