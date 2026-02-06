@@ -16,7 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Plus, Trash2, Copy, Save, Download, Upload, Languages, FileText,
+  ArrowLeft, ArrowRight, Plus, Trash2, Copy, Save, Download, Upload, Languages, FileText,
   GripVertical, X, LayoutTemplate, Eye, EyeOff, Lock, Unlock, ChevronUp,
   ChevronDown, Loader2, Image as ImageIcon, Scissors, Palette
 } from "lucide-react";
