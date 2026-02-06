@@ -541,8 +541,9 @@ export default function Editor() {
 
       {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-md" data-testid="export-dialog">
+        <DialogContent className="max-w-md" data-testid="export-dialog" aria-describedby="export-desc">
           <DialogHeader><DialogTitle>Disa Aktar</DialogTitle></DialogHeader>
+          <p id="export-desc" className="sr-only">Export format ve boyut secin</p>
           <div className="space-y-4 py-2">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Mod:</span>
