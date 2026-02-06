@@ -54,7 +54,8 @@ async def get_browser():
     if _browser is None or not _browser.is_connected():
         _playwright = await async_playwright().start()
         _browser = await _playwright.chromium.launch(
-            args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            executable_path='/pw-browsers/chromium-1208/chrome-linux/chrome',
+            args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
         )
     return _browser
 
