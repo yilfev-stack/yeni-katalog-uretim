@@ -3,20 +3,18 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:7
-    container_name: demart-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     networks:
-      - demart-network
+      - app-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: demart-backend
     restart: unless-stopped
     ports:
       - "8001:8001"
@@ -29,7 +27,7 @@ services:
     volumes:
       - backend_exports:/app/exports
     networks:
-      - demart-network
+      - app-network
 
   frontend:
     build:
@@ -37,19 +35,18 @@ services:
       dockerfile: Dockerfile
       args:
         - REACT_APP_BACKEND_URL=
-    container_name: demart-frontend
     restart: unless-stopped
     ports:
       - "3010:80"
     depends_on:
       - backend
     networks:
-      - demart-network
+      - app-network
 
 volumes:
   mongo_data:
   backend_exports:
 
 networks:
-  demart-network:
+  app-network:
     driver: bridge
