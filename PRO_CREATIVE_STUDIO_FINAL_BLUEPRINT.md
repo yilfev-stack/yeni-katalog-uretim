@@ -490,6 +490,29 @@ KULLANICI PC (Docker Compose)
 
 ---
 
-## 14. SONRAKI ADIM
+## 14. SCOPE KILIDI - 3 SON NETLIK
 
-Bu rapor onaylandiginda kodlamaya baslanacak.
+### NETLIK 1: Target OS ve Kurulum
+- **Target OS:** Windows 10/11 + Docker Desktop (zorunlu)
+- **Kurulum:** `docker compose up -d` ile tek komut
+- **Erisim:** `localhost:3010` (diger portlar dolu, 3010 sabit)
+- Kullanici hicbir ek kurulum yapmayacak, tek komut ile calisir durumda olacak
+
+### NETLIK 2: Playwright Chromium Sifir Kurulum
+- Playwright Chromium TUM dependency'leriyle birlikte container icinde gelecek
+- PC'de ayrica Chromium/Chrome kurulmasina gerek yok
+- **Kabul testi:** Ilk `docker compose up -d` sonrasinda, ilk export denemesinde PDF/PNG basariyla uretilecek
+- Sifir konfigrasyon, sifir ek adim
+
+### NETLIK 3: Export Dosya Konumu
+- **Birincil:** Tarayici download (kullanici tiklar, tarayici indirir)
+- **Ikincil (opsiyonel):** Backend `exports/` klasorune de kaydedilir (container icinde)
+- **Export history'den yeniden indirme:** Gecmis export'lar listeden tekrar indirilebilir
+- Export dosyalari backend'de saklanir, kullanici istediginde yeniden erisebilir
+
+---
+
+## 15. SCOPE DURUMU: KILITLENDI
+
+Bu dokuman v3 FINAL olarak onaylandi.
+Kodlamaya baslanacak.
