@@ -177,7 +177,18 @@ export default function Editor() {
     catch { toast.error("Silinemedi"); }
   };
 
-  const selectTemplate = (tid) => { updatePageContent('template_id', tid); setShowTemplateDialog(false); toast.success("Sablon uygulandi"); };
+  // Template switch: auto-save current content first, then change template
+  const selectTemplate = async (tid) => {
+    if (!selectedPage) return;
+    // Save current content before switching
+    try {
+      await axios.put(`${API}/catalogs/${catalogId}/pages/${selectedPageId}`, { content: selectedPage.content });
+    } catch(e) { /* continue even if save fails */ }
+    // Only change template_id, preserve ALL other content
+    updatePageContent('template_id', tid);
+    setShowTemplateDialog(false);
+    toast.success("Sablon uygulandi - icerik korundu");
+  };
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
