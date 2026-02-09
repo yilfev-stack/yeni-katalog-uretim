@@ -738,34 +738,34 @@ async def export_image(req: ExportRequest):
         w = req.width if not req.is_mm else int(req.width * 3.7795)
         h = req.height if not req.is_mm else int(req.height * 3.7795)
         img_bytes = await render_html_to_image(req.html_content, w, h, req.quality, fmt)
-    if req.optimize and fmt == 'jpeg':
-        img = Image.open(io.BytesIO(img_bytes))
-        output = io.BytesIO()
-        img.save(output, format='JPEG', quality=75, optimize=True)
-        output.seek(0)
-        img_bytes = output.read()
-    elif req.optimize and fmt == 'png':
-        img = Image.open(io.BytesIO(img_bytes))
-        output = io.BytesIO()
-        img.save(output, format='PNG', optimize=True, compress_level=9)
-        output.seek(0)
-        img_bytes = output.read()
-    mime = "image/jpeg" if fmt == 'jpeg' else "image/png"
-    ext = "jpg" if fmt == 'jpeg' else "png"
-    file_name = f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
-    try:
-        async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
-            await f.write(img_bytes)
-    except Exception:
-        pass
-    record = ExportRecord(format=ext, size_preset=f"{w}x{h}", quality="web" if req.optimize else "high", file_size=len(img_bytes))
-    await db.export_history.insert_one(record.model_dump())
-    return StreamingResponse(io.BytesIO(img_bytes), media_type=mime, headers={"Content-Disposition": f"attachment; filename={file_name}"})
-  except HTTPException:
-      raise
-  except Exception as e:
-      logger.error(f"Image export error: {e}")
-      raise HTTPException(500, f"Gorsel olusturma hatasi: {str(e)}")
+        if req.optimize and fmt == 'jpeg':
+            img = Image.open(io.BytesIO(img_bytes))
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=75, optimize=True)
+            output.seek(0)
+            img_bytes = output.read()
+        elif req.optimize and fmt == 'png':
+            img = Image.open(io.BytesIO(img_bytes))
+            output = io.BytesIO()
+            img.save(output, format='PNG', optimize=True, compress_level=9)
+            output.seek(0)
+            img_bytes = output.read()
+        mime = "image/jpeg" if fmt == 'jpeg' else "image/png"
+        ext = "jpg" if fmt == 'jpeg' else "png"
+        file_name = f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+        try:
+            async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
+                await f.write(img_bytes)
+        except Exception:
+            pass
+        record = ExportRecord(format=ext, size_preset=f"{w}x{h}", quality="web" if req.optimize else "high", file_size=len(img_bytes))
+        await db.export_history.insert_one(record.model_dump())
+        return StreamingResponse(io.BytesIO(img_bytes), media_type=mime, headers={"Content-Disposition": f"attachment; filename={file_name}"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Image export error: {e}")
+        raise HTTPException(500, f"Gorsel olusturma hatasi: {str(e)}")
 
 @api_router.post("/export/batch")
 async def export_batch(req: BatchExportRequest):
