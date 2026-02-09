@@ -19,6 +19,7 @@ const BASE_STYLES = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Open Sans', sans-serif; }
   .page { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  h1, h2, p, li, span, div { overflow-wrap: break-word; word-wrap: break-word; }
 `;
 
 function escapeHtml(str) {
