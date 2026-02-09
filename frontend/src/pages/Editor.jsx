@@ -448,6 +448,9 @@ export default function Editor() {
                     <ChevronRight className={`w-3 h-3 text-zinc-600 transition-transform ${openSections.effects ? 'rotate-90' : ''}`} />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="px-1 pt-2 space-y-3">
+                    <div className="bg-zinc-800/30 rounded p-1.5 text-[10px] text-zinc-500">
+                      <span className="text-[#004aad]">Hedef:</span> Secili layer'a uygulanir (Grain = global)
+                    </div>
                     <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Feathering</span><span className="text-[10px] text-zinc-600">{effects.feather}px</span></div>
                       <Slider value={[effects.feather]} onValueChange={([v]) => setEffects(p=>({...p,feather:v}))} max={20} className="mt-1" /></div>
                     <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Shadow</span><span className="text-[10px] text-zinc-600">{effects.shadow}%</span></div>
