@@ -712,24 +712,32 @@ async def get_translation_languages():
 # ==================== EXPORT ENDPOINTS ====================
 @api_router.post("/export/pdf")
 async def export_pdf(req: ExportRequest):
-    w = req.width if req.is_mm else int(req.width * 0.264583)
-    h = req.height if req.is_mm else int(req.height * 0.264583)
-    pdf_bytes = await render_html_to_pdf(req.html_content, w, h, req.landscape)
-    if req.optimize:
-        pass  # PDF optimization could be added
-    record = ExportRecord(format="pdf", size_preset=f"{req.width}x{req.height}", quality="high" if not req.optimize else "web", file_size=len(pdf_bytes))
-    await db.export_history.insert_one(record.model_dump())
-    file_name = f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
-        await f.write(pdf_bytes)
-    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={file_name}"})
+    try:
+        w = req.width if req.is_mm else int(req.width * 0.264583)
+        h = req.height if req.is_mm else int(req.height * 0.264583)
+        pdf_bytes = await render_html_to_pdf(req.html_content, w, h, req.landscape)
+        record = ExportRecord(format="pdf", size_preset=f"{req.width}x{req.height}", quality="high" if not req.optimize else "web", file_size=len(pdf_bytes))
+        await db.export_history.insert_one(record.model_dump())
+        file_name = f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        try:
+            async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
+                await f.write(pdf_bytes)
+        except Exception:
+            pass
+        return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={file_name}"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PDF export error: {e}")
+        raise HTTPException(500, f"PDF olusturma hatasi: {str(e)}")
 
 @api_router.post("/export/image")
 async def export_image(req: ExportRequest):
-    fmt = 'jpeg' if req.format in ('jpg', 'jpeg') else 'png'
-    w = req.width if not req.is_mm else int(req.width * 3.7795)
-    h = req.height if not req.is_mm else int(req.height * 3.7795)
-    img_bytes = await render_html_to_image(req.html_content, w, h, req.quality, fmt)
+    try:
+        fmt = 'jpeg' if req.format in ('jpg', 'jpeg') else 'png'
+        w = req.width if not req.is_mm else int(req.width * 3.7795)
+        h = req.height if not req.is_mm else int(req.height * 3.7795)
+        img_bytes = await render_html_to_image(req.html_content, w, h, req.quality, fmt)
     if req.optimize and fmt == 'jpeg':
         img = Image.open(io.BytesIO(img_bytes))
         output = io.BytesIO()
