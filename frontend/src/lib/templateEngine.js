@@ -225,13 +225,16 @@ function darkTech(data, theme, effects = {}) {
         <img src="${DEMART.logo_url}" style="height:32px;filter:brightness(0) invert(1);opacity:0.6;" crossorigin="anonymous" />
         <img src="${DEMART.sofis_logo_url}" style="height:30px;filter:brightness(0) invert(1);opacity:0.6;" crossorigin="anonymous" />
       </div>
-      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
-        <div style="width:40px;height:2px;background:${neon};margin-bottom:24px;box-shadow:0 0 10px ${neon};"></div>
-        <h1 style="font-family:'Montserrat',sans-serif;font-size:40px;font-weight:800;color:#f8fafc;line-height:1.15;margin-bottom:16px;">${escapeHtml(d.title || 'URUN ADI')}</h1>
-        ${d.subtitle ? `<h2 style="font-family:'Montserrat',sans-serif;font-size:18px;font-weight:400;color:${neon};margin-bottom:28px;">${escapeHtml(d.subtitle)}</h2>` : ''}
-        ${d.description ? `<p style="font-size:14px;color:#94a3b8;line-height:1.8;margin-bottom:28px;max-width:500px;">${escapeHtml(d.description)}</p>` : ''}
-        ${d.bullet_points?.length ? `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;">${d.bullet_points.map(p => `<div style="padding:8px 16px;border:1px solid ${neon}30;border-radius:4px;font-size:12px;color:#cbd5e1;background:${neon}08;">${escapeHtml(p)}</div>`).join('')}</div>` : ''}
-        ${d.image_data ? `<div style="margin-top:20px;"><img src="${d.image_data}" style="max-width:400px;max-height:250px;object-fit:${d.image_fit || 'contain'};border-radius:8px;box-shadow:0 0 40px ${neon}20;" crossorigin="anonymous" /></div>` : ''}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden;">
+        <div style="width:40px;height:2px;background:${neon};margin-bottom:20px;box-shadow:0 0 10px ${neon};"></div>
+        <h1 style="font-family:'Montserrat',sans-serif;font-size:34px;font-weight:800;color:#f8fafc;line-height:1.15;margin-bottom:14px;">${escapeHtml(d.title || 'URUN ADI')}</h1>
+        ${d.subtitle ? `<h2 style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:400;color:${neon};margin-bottom:20px;">${escapeHtml(d.subtitle)}</h2>` : ''}
+        ${d.description ? `<p style="font-size:13px;color:#94a3b8;line-height:1.7;margin-bottom:20px;max-width:500px;overflow:hidden;">${escapeHtml(d.description)}</p>` : ''}
+        ${d.bullet_points?.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">${d.bullet_points.slice(0,8).map(p => `<div style="padding:6px 14px;border:1px solid ${neon}30;border-radius:4px;font-size:11px;color:#cbd5e1;background:${neon}08;">${escapeHtml(p)}</div>`).join('')}</div>` : ''}
+        ${d.applications ? `<p style="font-size:12px;color:#64748b;margin-bottom:12px;">${escapeHtml(d.applications)}</p>` : ''}
+        ${d.key_benefits ? `<p style="font-size:12px;color:${neon}80;margin-bottom:16px;">${escapeHtml(d.key_benefits)}</p>` : ''}
+        ${d.cta_text ? `<div style="border:1px solid ${neon};color:${neon};padding:10px 24px;display:inline-block;font-family:'Montserrat',sans-serif;font-weight:600;font-size:13px;width:fit-content;border-radius:4px;">${escapeHtml(d.cta_text)}</div>` : ''}
+        ${d.image_data ? `<div style="margin-top:16px;"><img src="${d.image_data}" style="max-width:350px;max-height:200px;object-fit:${d.image_fit || 'contain'};border-radius:8px;box-shadow:0 0 40px ${neon}20;" crossorigin="anonymous" /></div>` : ''}
       </div>
       <div style="border-top:1px solid #1e293b;padding-top:16px;display:flex;justify-content:space-between;align-items:center;">
         <span style="font-size:9px;color:#475569;">${DEMART.website}</span>
