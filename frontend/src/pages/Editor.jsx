@@ -526,10 +526,10 @@ export default function Editor() {
           <div className="space-y-3 mt-4">
             <div className="flex gap-1.5 items-center">
               <Select value={sourceLang} onValueChange={setSourceLang}><SelectTrigger className="w-[90px] h-7 text-xs bg-zinc-800 border-zinc-700 text-zinc-300"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="EN">English</SelectItem><SelectItem value="TR">Turkce</SelectItem><SelectItem value="RU">Rusca</SelectItem></SelectContent></Select>
+                <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="EN">English</SelectItem><SelectItem value="TR">Turkce</SelectItem><SelectItem value="AZ">Azerbaycanca</SelectItem><SelectItem value="ES">Espanol</SelectItem><SelectItem value="RU">Rusca</SelectItem></SelectContent></Select>
               <ArrowRight className="w-3 h-3 text-zinc-600" />
               <Select value={targetLang} onValueChange={setTargetLang}><SelectTrigger className="w-[90px] h-7 text-xs bg-zinc-800 border-zinc-700 text-zinc-300"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="EN">English</SelectItem><SelectItem value="TR">Turkce</SelectItem><SelectItem value="RU">Rusca</SelectItem></SelectContent></Select>
+                <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="EN">English</SelectItem><SelectItem value="TR">Turkce</SelectItem><SelectItem value="AZ">Azerbaycanca</SelectItem><SelectItem value="ES">Espanol</SelectItem><SelectItem value="RU">Rusca</SelectItem></SelectContent></Select>
             </div>
             <Select value={translationTone} onValueChange={setTranslationTone}><SelectTrigger className="h-7 text-xs bg-zinc-800 border-zinc-700 text-zinc-300"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="corporate">Kurumsal</SelectItem><SelectItem value="technical">Teknik</SelectItem><SelectItem value="marketing">Pazarlama</SelectItem><SelectItem value="short">Kisa</SelectItem></SelectContent></Select>
