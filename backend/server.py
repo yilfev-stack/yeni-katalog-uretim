@@ -78,11 +78,15 @@ async def get_browser():
     return _browser
 
 async def render_html_to_pdf(html_content: str, width_mm: int = 210, height_mm: int = 297, landscape: bool = False) -> bytes:
-    browser = await get_browser()
+    try:
+        browser = await get_browser()
+    except Exception as e:
+        logger.error(f"Browser launch failed: {e}")
+        raise HTTPException(500, f"Playwright tarayici baslatilamadi: {str(e)}")
     page = await browser.new_page()
     try:
-        await page.set_content(html_content, wait_until='networkidle', timeout=30000)
-        await page.wait_for_timeout(500)
+        await page.set_content(html_content, wait_until='load', timeout=15000)
+        await page.wait_for_timeout(300)
         pdf_bytes = await page.pdf(
             width=f'{width_mm}mm',
             height=f'{height_mm}mm',
