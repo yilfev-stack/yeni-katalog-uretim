@@ -58,6 +58,7 @@ async def get_browser():
         chrome_path = None
         candidates = [
             '/pw-browsers/chromium-1208/chrome-linux/chrome',
+            '/pw-browsers/chromium_headless_shell-1208/chrome-linux/headless_shell',
             shutil.which('chromium-browser'),
             shutil.which('chromium'),
             shutil.which('google-chrome'),
