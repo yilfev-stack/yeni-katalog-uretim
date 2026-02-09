@@ -573,14 +573,24 @@ async def upload_image(file: UploadFile = File(...)):
     contents = await file.read()
     img = Image.open(io.BytesIO(contents))
     img = ImageOps.exif_transpose(img)
-    if img.mode in ('RGBA', 'P'):
-        bg = Image.new('RGB', img.size, (255, 255, 255))
-        if img.mode == 'P':
-            img = img.convert('RGBA')
-        bg.paste(img, mask=img.split()[3] if img.mode == 'RGBA' else None)
-        img = bg
+    original_format = img.format or 'JPEG'
+    
+    # Preserve PNG with transparency
+    if img.mode == 'RGBA' or original_format == 'PNG':
+        output = io.BytesIO()
+        img.save(output, format='PNG', optimize=True)
+        output.seek(0)
+        b64 = base64.b64encode(output.read()).decode('utf-8')
+        return {"image_data": f"data:image/png;base64,{b64}", "width": img.width, "height": img.height}
+    
+    # JPEG - high quality, no unnecessary re-encoding for small files
+    if img.mode == 'P':
+        img = img.convert('RGB')
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+    
     output = io.BytesIO()
-    img.save(output, format='JPEG', quality=95, optimize=True)
+    img.save(output, format='JPEG', quality=97, optimize=True)
     output.seek(0)
     b64 = base64.b64encode(output.read()).decode('utf-8')
     return {"image_data": f"data:image/jpeg;base64,{b64}", "width": img.width, "height": img.height}
