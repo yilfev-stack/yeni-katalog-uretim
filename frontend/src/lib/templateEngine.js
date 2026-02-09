@@ -8,7 +8,7 @@ const DEMART = {
   website: "www.demart.com.tr",
   email: "info@demart.com.tr",
   address: "VeliBaba Mah. Ertugrul Gazi Cad. No 82/1, 35852 Pendik Istanbul TURKIYE",
-  logo_url: "https://customer-assets.emergentagent.com/job_ffb90a8b-8cf3-4732-bc1d-c708d6edf43e/artifacts/ruhmwlf7_logo%20sosn.jpg",
+  logo_url: "https://customer-assets.emergentagent.com/job_sofis-marketing-exe/artifacts/8cw43hdp_logo%20sosn.jpg",
   sofis_logo_url: "https://customer-assets.emergentagent.com/job_ffb90a8b-8cf3-4732-bc1d-c708d6edf43e/artifacts/noo38mpw_sofis_valve_operation_logo.jpeg"
 };
 
