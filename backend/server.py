@@ -287,7 +287,55 @@ async def startup():
         existing = await db.glossary.find_one({"id": term["id"]}, {"_id": 0})
         if not existing:
             await db.glossary.insert_one(term)
-    logger.info("Startup complete: themes and glossary seeded")
+    # Seed demo projects (only if no catalogs exist)
+    cat_count = await db.catalogs.count_documents({})
+    if cat_count == 0:
+        # Seed A: VPI catalog (3 pages)
+        vpi_pages = [
+            {"id": str(uuid.uuid4()), "order": 0, "content": {
+                "template_id": "industrial-product-alert",
+                "title": "SOFIS VPI-A Series", "subtitle": "Valve Position Indicator",
+                "description": "VPI, endustriyel vanalarin acik/kapali konumunu guvenli sekilde gosteren mekanik bir cihaztir. ATEX ve IECEx sertifikali olup tehlikeli bolgelerde guvenle kullanilabilir.",
+                "bullet_points": ["ATEX / IECEx Sertifikali", "IP67 Koruma Sinifi", "Paslanmaz Celik Govde", "-40C ile +80C Calisma Sicakligi", "NAMUR Sensor Destegi", "Yerinde LED Gosterge"],
+                "applications": "Petrol & Gaz, Rafineriler, Petrokimya Tesisleri, LNG/FSU/FPSO",
+                "key_benefits": "Yuksek guvenilirlik, kolay montaj, dusuk bakim maliyeti",
+                "cta_text": "Detayli Bilgi Icin Bize Ulasin"
+            }, "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()},
+            {"id": str(uuid.uuid4()), "order": 1, "content": {
+                "template_id": "tech-data-sheet",
+                "title": "VPI-A Teknik Veri Sayfasi", "subtitle": "Teknik Ozellikler ve Spesifikasyonlar",
+                "description": "Netherlocks VPI-A serisi vana konum gostergesi icin detayli teknik bilgiler.",
+                "bullet_points": ["Govde: Aluminyum (A) / Paslanmaz (S)", "Agirlik: 1.2 kg (kucuk) / 2.4 kg (buyuk)", "Boyut: 120x80x95 mm", "Mil Capi: 8-55 mm", "Sicaklik: -40C / +80C", "Koruma: IP67"],
+                "applications": "Endustriyel vana konum tespiti",
+                "key_benefits": "Uzun omur, minimum bakim, kolay montaj"
+            }, "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()},
+            {"id": str(uuid.uuid4()), "order": 2, "content": {
+                "template_id": "clean-industrial-grid",
+                "title": "VPI Neden Secilmeli?", "subtitle": "6 Temel Avantaj",
+                "bullet_points": ["Kolay Montaj: Tek kisi ile dakikalar icinde", "Dusuk Maliyet: Rakiplere gore %30 ekonomik", "Genis Sicaklik: -40C ile +80C arasi", "IP67 Koruma: Su ve toz gecirmez", "ATEX Sertifika: Tehlikeli bolge onayili", "10 Yil Garanti: Uzun vadeli guvence"],
+                "key_benefits": "Endustriyel vana yonetiminde guvenilir cozum"
+            }, "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}
+        ]
+        await db.catalogs.insert_one({
+            "id": "seed-vpi-catalog", "name": "Sofis VPI-A Series", "product_name": "Valve Position Indicator",
+            "tags": ["sofis", "vpi", "endustriyel"], "template_id": "industrial-product-alert", "theme_id": "demart-corporate",
+            "pages": vpi_pages, "version": 1,
+            "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()
+        })
+        # Seed B: Greeting card
+        await db.cards.insert_one({
+            "id": "seed-greeting", "name": "Yeni Yil Tebrik", "card_type": "greeting",
+            "content": {"title": "Mutlu Yillar!", "message": "Yeni yiliniz kutlu olsun!\nSaglik, mutluluk ve basari dolu bir yil diliyoruz.\n\nSaygilarimizla,", "from_name": "Demart Muhendislik", "background_color": "#004aad", "text_color": "#ffffff", "template_id": "greeting-card"},
+            "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()
+        })
+        # Seed C: Condolence card
+        await db.cards.insert_one({
+            "id": "seed-condolence", "name": "Taziye", "card_type": "condolence",
+            "content": {"title": "Baskisagligi", "message": "Merhumun ailesine ve yakinlarina basimiz sagligi diliyoruz.\nMekani cennet olsun.\n\nAllahtan rahmet, ailesine sabir diliyoruz.", "from_name": "Demart Muhendislik Ailesi", "background_color": "#1e293b", "text_color": "#e2e8f0", "template_id": "condolence-card"},
+            "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()
+        })
+        logger.info("Seed projects created: VPI catalog + greeting + condolence cards")
+    logger.info("Startup complete")
 
 # ==================== CATALOG CRUD ====================
 @api_router.get("/")
