@@ -90,18 +90,20 @@ function eventPoster(data, theme, effects = {}) {
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body><div class="page" style="width:794px;height:1123px;position:relative;background:linear-gradient(160deg,${theme.primary_color} 0%,${theme.secondary_color} 60%,#0c1425 100%);">
     <div style="position:absolute;top:20px;right:20px;width:80px;height:80px;border:2px solid rgba(255,255,255,0.15);border-radius:50%;"></div>
     <div style="position:absolute;top:50px;right:50px;width:120px;height:120px;border:1px solid rgba(255,255,255,0.08);border-radius:50%;"></div>
-    <div style="padding:60px 50px;display:flex;flex-direction:column;align-items:center;text-align:center;height:100%;position:relative;z-index:1;">
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:600px;">
-        <h1 style="font-family:'Montserrat',sans-serif;font-size:52px;font-weight:900;color:#fff;line-height:1.1;margin-bottom:16px;text-transform:uppercase;">${escapeHtml(d.title || 'ETKINLIK ADI')}</h1>
-        ${d.subtitle ? `<h2 style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:400;color:rgba(255,255,255,0.9);margin-bottom:30px;font-style:italic;">${escapeHtml(d.subtitle)}</h2>` : ''}
-        ${d.description ? `<p style="font-size:16px;color:rgba(255,255,255,0.85);line-height:1.8;margin-bottom:40px;max-width:500px;">${escapeHtml(d.description)}</p>` : ''}
-        ${d.applications ? `<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;"><span style="font-size:14px;color:rgba(255,255,255,0.9);">&#127760; ${escapeHtml(d.applications)}</span></div>` : ''}
-        ${d.key_benefits ? `<div style="display:flex;gap:40px;margin-top:20px;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:14px;color:rgba(255,255,255,0.9);">&#128205; ${escapeHtml(d.key_benefits)}</span></div></div>` : ''}
-        ${d.cta_text ? `<div style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:14px 36px;border-radius:50px;font-family:'Montserrat',sans-serif;font-weight:600;font-size:15px;margin-top:30px;backdrop-filter:blur(10px);">${escapeHtml(d.cta_text)}</div>` : ''}
+    <div style="padding:50px 50px;display:flex;flex-direction:column;align-items:center;text-align:center;height:100%;position:relative;z-index:1;overflow:hidden;">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:650px;overflow:hidden;">
+        ${d.image_data ? `<img src="${d.image_data}" style="max-width:200px;max-height:180px;object-fit:contain;margin-bottom:20px;border-radius:12px;" crossorigin="anonymous" />` : ''}
+        <h1 style="font-family:'Montserrat',sans-serif;font-size:38px;font-weight:900;color:#fff;line-height:1.15;margin-bottom:14px;text-transform:uppercase;overflow:hidden;">${escapeHtml(d.title || 'ETKINLIK ADI')}</h1>
+        ${d.subtitle ? `<h2 style="font-family:'Montserrat',sans-serif;font-size:17px;font-weight:400;color:rgba(255,255,255,0.9);margin-bottom:24px;font-style:italic;">${escapeHtml(d.subtitle)}</h2>` : ''}
+        ${d.description ? `<p style="font-size:14px;color:rgba(255,255,255,0.85);line-height:1.7;margin-bottom:24px;max-width:550px;overflow:hidden;">${escapeHtml(d.description)}</p>` : ''}
+        ${d.bullet_points?.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;">${d.bullet_points.slice(0,6).map(p => `<span style="padding:5px 14px;border:1px solid rgba(255,255,255,0.25);border-radius:20px;font-size:11px;color:rgba(255,255,255,0.85);">${escapeHtml(p)}</span>`).join('')}</div>` : ''}
+        ${d.applications ? `<div style="margin-bottom:12px;"><span style="font-size:13px;color:rgba(255,255,255,0.8);">${escapeHtml(d.applications)}</span></div>` : ''}
+        ${d.key_benefits ? `<div style="margin-bottom:12px;"><span style="font-size:13px;color:rgba(255,255,255,0.8);">${escapeHtml(d.key_benefits)}</span></div>` : ''}
+        ${d.cta_text ? `<div style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:12px 32px;border-radius:50px;font-family:'Montserrat',sans-serif;font-weight:600;font-size:14px;margin-top:16px;backdrop-filter:blur(10px);">${escapeHtml(d.cta_text)}</div>` : ''}
       </div>
-      <div style="display:flex;gap:40px;align-items:center;padding:30px 0;border-top:1px solid rgba(255,255,255,0.15);width:100%;justify-content:center;">
-        <img src="${DEMART.logo_url}" style="height:40px;filter:brightness(0) invert(1);opacity:0.8;" crossorigin="anonymous" />
-        <img src="${DEMART.sofis_logo_url}" style="height:36px;filter:brightness(0) invert(1);opacity:0.8;" crossorigin="anonymous" />
+      <div style="display:flex;gap:40px;align-items:center;padding:24px 0;border-top:1px solid rgba(255,255,255,0.15);width:100%;justify-content:center;">
+        <img src="${DEMART.logo_url}" style="height:36px;filter:brightness(0) invert(1);opacity:0.8;" crossorigin="anonymous" />
+        <img src="${DEMART.sofis_logo_url}" style="height:32px;filter:brightness(0) invert(1);opacity:0.8;" crossorigin="anonymous" />
       </div>
     </div>
     ${grainOverlay(effects.grain_enabled, effects.grain_intensity)}
