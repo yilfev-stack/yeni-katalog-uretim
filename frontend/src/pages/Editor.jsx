@@ -322,7 +322,7 @@ export default function Editor() {
         {/* Right - Properties */}
         <div className="w-[300px] bg-[#0f0f11] border-l border-zinc-800 flex flex-col shrink-0 h-full">
           <div className="px-3 py-2 border-b border-zinc-800 shrink-0">
-            <h2 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Ozellikler</h2>
+            <h2 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Sayfa Ozellikleri</h2>
           </div>
           <ScrollArea className="flex-1">
             {selectedPage && (
