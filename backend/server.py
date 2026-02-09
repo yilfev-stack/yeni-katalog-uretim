@@ -100,11 +100,15 @@ async def render_html_to_pdf(html_content: str, width_mm: int = 210, height_mm: 
         await page.close()
 
 async def render_html_to_image(html_content: str, width: int = 1080, height: int = 1080, quality: int = 90, img_format: str = 'png') -> bytes:
-    browser = await get_browser()
+    try:
+        browser = await get_browser()
+    except Exception as e:
+        logger.error(f"Browser launch failed: {e}")
+        raise HTTPException(500, f"Playwright tarayici baslatilamadi: {str(e)}")
     page = await browser.new_page(viewport={'width': width, 'height': height})
     try:
-        await page.set_content(html_content, wait_until='networkidle', timeout=30000)
-        await page.wait_for_timeout(500)
+        await page.set_content(html_content, wait_until='load', timeout=15000)
+        await page.wait_for_timeout(300)
         if img_format == 'jpeg' or img_format == 'jpg':
             screenshot = await page.screenshot(type='jpeg', quality=quality, full_page=False)
         else:
