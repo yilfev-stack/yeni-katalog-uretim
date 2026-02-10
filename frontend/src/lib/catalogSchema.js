@@ -13,13 +13,13 @@ export const TEMPLATE_FIELD_REGISTRY = [
   { id: 'label_benefits', label: 'Avantaj Basligi', type: 'text', defaultValue: 'TEMEL AVANTAJLAR' },
   { id: 'label_features', label: 'Ozellik Basligi', type: 'text', defaultValue: 'TEKNIK OZELLIKLER' },
   { id: 'bullet_points', label: 'Madde Listesi', type: 'list', defaultValue: [] },
-
   { id: 'image_data', label: 'Ana Gorsel', type: 'image', defaultValue: null },
   { id: 'overlay_images', label: 'Ek Gorseller', type: 'image-list', defaultValue: [] },
   { id: 'custom_text_boxes', label: 'Serbest Metin Kutulari', type: 'object-list', defaultValue: [] },
   { id: 'layers', label: 'Katmanlar', type: 'object-list', defaultValue: [] },
   { id: 'effects', label: 'Efektler', type: 'object', defaultValue: { grain_enabled: false, grain_intensity: 20 } },
 ];
+
 
 export const FIELD_ALIASES = {
   body: ['description', 'message'],
