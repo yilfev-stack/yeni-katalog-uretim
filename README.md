@@ -57,3 +57,28 @@ docker compose up -d --build
 | Frontend (UI) | 3010 |
 | Backend (API) | 8001 |
 | MongoDB | 27017 |
+
+
+## Export Runbook (PDF/PNG Neden Calismiyor?)
+
+Bu projede Playwright browser download yerine **sistem Chromium** kullanilir.
+Bu sayede 403/CDN engellerinden etkilenmeden export alinir.
+
+### Hizli smoke test (onerilen)
+
+```bash
+docker compose up -d --build
+docker compose run --rm backend python tests/export_smoke_test.py
+```
+
+### Host ortaminda calistirmak isterseniz
+
+Host makinede Chromium kurulu olmalidir (`chromium` veya `chromium-browser`).
+Kurulu degilse test su hata ile durur ve Docker komutuna yonlendirir.
+
+### Beklenen env
+
+- `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`
+- `CHROMIUM_PATH=/usr/bin/chromium`
+
+Bu env'ler `docker-compose.yml` backend servisinde tanimlidir.
