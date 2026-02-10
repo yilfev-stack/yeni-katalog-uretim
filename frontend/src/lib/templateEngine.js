@@ -92,13 +92,13 @@ function footerBar(theme) {
   </div>`;
 }
 
-
 function pickPageBackground(custom, fallback) {
   if (custom) return `background:${custom};`;
   return fallback;
 }
 
 function getLayerMap(rawLayers = []) {
+
   return rawLayers.reduce((acc, layer) => {
     if (layer?.id) acc[layer.id] = layer;
     return acc;
@@ -153,7 +153,6 @@ function renderShapeLayers(data = {}, layerMap = {}) {
     .join('');
 }
 
-function renderOverlayImages(data = {}, layerMap = {}) {
   const overlays = Array.isArray(data.overlay_images) ? data.overlay_images : [];
   if (!isLayerVisible(layerMap, 'overlay-images')) return '';
   return overlays
@@ -202,8 +201,7 @@ function industrialProductAlert(data, theme, effects = {}) {
     <div style="display:flex;height:calc(100% - 90px);">
       <div style="width:42%;position:relative;overflow:hidden;">
         ${isLayerVisible(layerMap,'image') && d.image_data ? `<img src="${d.image_data}" style="width:100%;height:100%;object-fit:${d.image_fit||'cover'};" />` : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1e3a5f,#0f172a);"></div>`}
-      </div>
-      <div style="width:58%;padding:28px 24px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;background:${theme.primary_color}08;">
+          <div style="width:58%;padding:28px 24px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;background:${theme.primary_color}08;">
         <div style="background:${theme.accent_color||'#f59e0b'};color:#fff;display:inline-block;padding:5px 14px;border-radius:3px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;letter-spacing:2px;margin-bottom:16px;width:fit-content;">${esc(d.label_alert || 'PRODUCT ALERT!')}</div>
         ${isLayerVisible(layerMap,'title') ? `<h1 style="font-family:'Montserrat',sans-serif;font-size:clamp(18px,3.5vw,28px);font-weight:800;color:${theme.primary_color};line-height:1.2;margin-bottom:12px;${fieldStyle(c,'title',{color:theme.primary_color})}">${esc(d.title||'Urun Basligi')}</h1>` : ''}
         ${d.subtitle?`<h2 style="font-size:clamp(12px,2vw,16px);color:${theme.secondary_color};margin-bottom:14px;${fieldStyle(c,'subtitle',{color:theme.secondary_color})}">${esc(d.subtitle)}</h2>`:''}
@@ -213,13 +211,7 @@ function industrialProductAlert(data, theme, effects = {}) {
         ${d.key_benefits?`<div style="background:${theme.primary_color}10;border-left:3px solid ${theme.primary_color};padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:14px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};margin-bottom:3px;">${esc(d.label_benefits || 'TEMEL AVANTAJLAR')}</div><p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits',{color:'#334155',size:11})}">${esc(d.key_benefits)}</p></div>`:''}
         ${d.cta_text?`<div style="background:${theme.primary_color};color:#fff;padding:10px 22px;border-radius:4px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;display:inline-block;width:fit-content;">${esc(d.cta_text)}</div>`:''}
       </div>
-    </div>
-    ${isLayerVisible(layerMap,'footer') ? footerBar(theme) : ''}
-    ${renderShapeLayers(d, layerMap)}
-    ${renderOverlayImages(d, layerMap)}
-    ${renderCustomTextBoxes(d, layerMap)}
-    ${grainOverlay(effects.grain_enabled,effects.grain_intensity)}
-  </div></body></html>`;
+
 }
 
 // ========== TEMPLATE 2: Event Poster ==========
@@ -317,6 +309,7 @@ function photoDominant(data, theme, effects = {}) {
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:${theme.background_color || "#ffffff"};`)}">
+
     ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${d.image_fit||'cover'};" />`:`<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1e293b,#0f172a);"></div>`}
     <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.5) 50%,rgba(0,0,0,0.85) 100%);"></div>
     <div style="position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:50px 40px;overflow:hidden;">
