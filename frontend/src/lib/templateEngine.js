@@ -312,7 +312,8 @@ function techDataSheet(data, theme, effects = {}) {
 
 // ========== TEMPLATE 5: Photo Dominant ==========
 function photoDominant(data, theme, effects = {}) {
-  const d = normalizeContent(data); const c = d;
+  const d = normalizeContent(data);
+  const c = d;
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:${theme.background_color || "#ffffff"};`)}">
