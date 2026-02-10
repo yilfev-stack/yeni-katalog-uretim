@@ -18,6 +18,8 @@ services:
       - MONGO_URL=mongodb://mongodb:27017
       - DB_NAME=demart_studio
       - CORS_ORIGINS=*
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+      - CHROMIUM_PATH=/usr/bin/chromium
     depends_on:
       - mongodb
     volumes:
