@@ -8,7 +8,12 @@ export const TEMPLATE_FIELD_REGISTRY = [
   { id: 'address', label: 'Adres', type: 'textarea', defaultValue: '' },
   { id: 'applications', label: 'Uygulama Alanlari', type: 'textarea', defaultValue: '' },
   { id: 'key_benefits', label: 'Temel Avantajlar', type: 'textarea', defaultValue: '' },
+  { id: 'label_alert', label: 'Uyari Basligi', type: 'text', defaultValue: 'PRODUCT ALERT!' },
+  { id: 'label_applications', label: 'Uygulama Basligi', type: 'text', defaultValue: 'UYGULAMA ALANLARI' },
+  { id: 'label_benefits', label: 'Avantaj Basligi', type: 'text', defaultValue: 'TEMEL AVANTAJLAR' },
+  { id: 'label_features', label: 'Ozellik Basligi', type: 'text', defaultValue: 'TEKNIK OZELLIKLER' },
   { id: 'bullet_points', label: 'Madde Listesi', type: 'list', defaultValue: [] },
+
   { id: 'image_data', label: 'Ana Gorsel', type: 'image', defaultValue: null },
   { id: 'overlay_images', label: 'Ek Gorseller', type: 'image-list', defaultValue: [] },
   { id: 'custom_text_boxes', label: 'Serbest Metin Kutulari', type: 'object-list', defaultValue: [] },

@@ -92,7 +92,13 @@ function footerBar(theme) {
   </div>`;
 }
 
+function pickPageBackground(custom, fallback) {
+  if (custom) return `background:${custom};`;
+  return fallback;
+}
+
 function getLayerMap(rawLayers = []) {
+
   return rawLayers.reduce((acc, layer) => {
     if (layer?.id) acc[layer.id] = layer;
     return acc;
@@ -121,22 +127,32 @@ function renderShapeLayers(data = {}, layerMap = {}) {
   const shapes = Array.isArray(data.shape_layers) ? data.shape_layers : [];
   if (!isLayerVisible(layerMap, 'shapes')) return '';
   return shapes
-    .filter((sh) => sh?.type === 'rect')
     .map((sh) => {
-      const x = Number(sh.x ?? 50);
-      const y = Number(sh.y ?? 50);
-      const w = Number(sh.width ?? 20);
-      const h = Number(sh.height ?? 10);
-      const opacity = Number(sh.opacity ?? 100) / 100;
-      const radius = Number(sh.borderRadius ?? 0);
-      const color = sh.color || '#0f172a';
-      const z = Number(sh.zIndex ?? 5);
-      const shadow = sh.shadow ? 'box-shadow:0 10px 30px rgba(0,0,0,0.25);' : '';
-      return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;transform:translate(-50%,-50%);background:${color};opacity:${opacity};border-radius:${radius}px;z-index:${z};${shadow}"></div>`;
+      const type = sh?.type || 'rect';
+      const x = Number(sh?.x ?? 50);
+      const y = Number(sh?.y ?? 50);
+      const w = Number(sh?.width ?? 20);
+      const h = Number(sh?.height ?? 10);
+      const opacity = Number(sh?.opacity ?? 100) / 100;
+      const radius = Number(sh?.borderRadius ?? 0);
+      const color = sh?.color || '#0f172a';
+      const z = Number(sh?.zIndex ?? 5);
+      const rotate = Number(sh?.rotation ?? 0);
+      const shadow = sh?.shadow ? 'box-shadow:0 10px 30px rgba(0,0,0,0.25);' : '';
+      const common = `position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;transform:translate(-50%,-50%) rotate(${rotate}deg);opacity:${opacity};z-index:${z};${shadow}`;
+
+      if (type === 'circle') {
+        return `<div style="${common}background:${color};border-radius:9999px;"></div>`;
+      }
+      if (type === 'line') {
+        const thickness = Number(sh?.thickness ?? 3);
+        return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${thickness}px;transform:translate(-50%,-50%) rotate(${rotate}deg);background:${color};opacity:${opacity};z-index:${z};${shadow}"></div>`;
+      }
+      return `<div style="${common}background:${color};border-radius:${radius}px;"></div>`;
     })
     .join('');
 }
-function renderOverlayImages(data = {}, layerMap = {}) {
+
   const overlays = Array.isArray(data.overlay_images) ? data.overlay_images : [];
   if (!isLayerVisible(layerMap, 'overlay-images')) return '';
   return overlays
@@ -180,29 +196,22 @@ function industrialProductAlert(data, theme, effects = {}) {
   const c = d; // content
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:${theme.background_color || "#ffffff"};`)}">
     ${headerBar(theme)}
     <div style="display:flex;height:calc(100% - 90px);">
       <div style="width:42%;position:relative;overflow:hidden;">
         ${isLayerVisible(layerMap,'image') && d.image_data ? `<img src="${d.image_data}" style="width:100%;height:100%;object-fit:${d.image_fit||'cover'};" />` : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1e3a5f,#0f172a);"></div>`}
-      </div>
-      <div style="width:58%;padding:28px 24px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;background:${theme.primary_color}08;">
-        <div style="background:${theme.accent_color||'#f59e0b'};color:#fff;display:inline-block;padding:5px 14px;border-radius:3px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;letter-spacing:2px;margin-bottom:16px;width:fit-content;">PRODUCT ALERT!</div>
+          <div style="width:58%;padding:28px 24px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;background:${theme.primary_color}08;">
+        <div style="background:${theme.accent_color||'#f59e0b'};color:#fff;display:inline-block;padding:5px 14px;border-radius:3px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;letter-spacing:2px;margin-bottom:16px;width:fit-content;">${esc(d.label_alert || 'PRODUCT ALERT!')}</div>
         ${isLayerVisible(layerMap,'title') ? `<h1 style="font-family:'Montserrat',sans-serif;font-size:clamp(18px,3.5vw,28px);font-weight:800;color:${theme.primary_color};line-height:1.2;margin-bottom:12px;${fieldStyle(c,'title',{color:theme.primary_color})}">${esc(d.title||'Urun Basligi')}</h1>` : ''}
         ${d.subtitle?`<h2 style="font-size:clamp(12px,2vw,16px);color:${theme.secondary_color};margin-bottom:14px;${fieldStyle(c,'subtitle',{color:theme.secondary_color})}">${esc(d.subtitle)}</h2>`:''}
         ${d.description?`<p style="font-size:clamp(10px,1.5vw,13px);color:#475569;line-height:1.6;margin-bottom:16px;${fieldStyle(c,'description',{color:'#475569'})}">${esc(d.description)}</p>`:''}
         ${d.bullet_points?.length?`<ul style="list-style:none;padding:0;margin-bottom:16px;">${d.bullet_points.slice(0,7).map(p=>`<li style="padding:4px 0;font-size:12px;color:#334155;display:flex;align-items:flex-start;gap:8px;${fieldStyle(c,'bullets',{color:'#334155',size:12})}"><span style="color:${d.bullet_color || '#9ecb2d'};font-size:11px;line-height:1.3;display:inline-block;width:10px;">${d.bullet_style === 'square' || !d.bullet_style ? '&#9632;' : '&#9679;'}</span><span style="flex:1;">${esc(p)}</span></li>`).join('')}</ul>`:''}
-        ${d.applications?`<div style="margin-bottom:12px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};letter-spacing:1px;margin-bottom:4px;">UYGULAMA ALANLARI</div><p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'applications',{color:'#475569',size:11})}">${esc(d.applications)}</p></div>`:''}
-        ${d.key_benefits?`<div style="background:${theme.primary_color}10;border-left:3px solid ${theme.primary_color};padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:14px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};margin-bottom:3px;">TEMEL AVANTAJLAR</div><p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits',{color:'#334155',size:11})}">${esc(d.key_benefits)}</p></div>`:''}
+        ${d.applications?`<div style="margin-bottom:12px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};letter-spacing:1px;margin-bottom:4px;">${esc(d.label_applications || 'UYGULAMA ALANLARI')}</div><p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'applications',{color:'#475569',size:11})}">${esc(d.applications)}</p></div>`:''}
+        ${d.key_benefits?`<div style="background:${theme.primary_color}10;border-left:3px solid ${theme.primary_color};padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:14px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};margin-bottom:3px;">${esc(d.label_benefits || 'TEMEL AVANTAJLAR')}</div><p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits',{color:'#334155',size:11})}">${esc(d.key_benefits)}</p></div>`:''}
         ${d.cta_text?`<div style="background:${theme.primary_color};color:#fff;padding:10px 22px;border-radius:4px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;display:inline-block;width:fit-content;">${esc(d.cta_text)}</div>`:''}
       </div>
-    </div>
-    ${isLayerVisible(layerMap,'footer') ? footerBar(theme) : ''}
-    ${renderShapeLayers(d, layerMap)}
-    ${renderOverlayImages(d, layerMap)}
-    ${renderCustomTextBoxes(d, layerMap)}
-    ${grainOverlay(effects.grain_enabled,effects.grain_intensity)}
-  </div></body></html>`;
+
 }
 
 // ========== TEMPLATE 2: Event Poster ==========
@@ -210,7 +219,7 @@ function eventPoster(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;background:linear-gradient(160deg,${theme.primary_color} 0%,${theme.secondary_color} 60%,#0c1425 100%);">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:linear-gradient(160deg,${theme.primary_color} 0%,${theme.secondary_color} 60%,#0c1425 100%);`)}">
     <div style="padding:40px;display:flex;flex-direction:column;align-items:center;text-align:center;height:100%;overflow:hidden;">
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:650px;">
         ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="max-width:180px;max-height:160px;object-fit:contain;margin-bottom:20px;border-radius:10px;" />`:''}
@@ -239,7 +248,7 @@ function minimalPremium(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;background:#fff;">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
     ${headerBar(theme)}
     <div style="padding:60px 50px;height:calc(100% - 90px);display:flex;flex-direction:column;overflow:hidden;">
       <div style="width:50px;height:3px;background:${theme.primary_color};margin-bottom:30px;"></div>
@@ -269,7 +278,7 @@ function techDataSheet(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;background:#fff;">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
     ${headerBar(theme)}
     <div style="padding:24px;height:calc(100% - 90px);overflow:hidden;">
       <div style="display:flex;gap:16px;margin-bottom:16px;">
@@ -280,10 +289,10 @@ function techDataSheet(data, theme, effects = {}) {
         </div>
         ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="width:160px;flex-shrink:0;"><img src="${d.image_data}" style="width:100%;border-radius:6px;object-fit:${d.image_fit||'contain'};border:1px solid #e2e8f0;" /></div>`:''}
       </div>
-      ${d.bullet_points?.length?`<div style="margin-bottom:12px;"><div style="background:${theme.primary_color};color:#fff;padding:6px 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;">TEKNIK OZELLIKLER</div>
+      ${d.bullet_points?.length?`<div style="margin-bottom:12px;"><div style="background:${theme.primary_color};color:#fff;padding:6px 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;">${esc(d.label_features || 'TEKNIK OZELLIKLER')}</div>
         <table style="width:100%;border-collapse:collapse;">${d.bullet_points.slice(0,10).map((p,i)=>{const pts=p.split(':');return `<tr style="background:${i%2===0?'#f8fafc':'#fff'};"><td style="padding:6px 12px;font-size:11px;color:#334155;border:1px solid #e2e8f0;font-weight:600;width:40%;${fieldStyle(c,'bullets',{size:11})}">${esc(pts[0]||p)}</td><td style="padding:6px 12px;font-size:11px;color:#475569;border:1px solid #e2e8f0;">${esc(pts[1]||'')}</td></tr>`;}).join('')}</table></div>`:''}
-      ${d.applications?`<div style="margin-bottom:10px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};letter-spacing:1px;margin-bottom:4px;">UYGULAMA ALANLARI</div><p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'applications')}">${esc(d.applications)}</p></div>`:''}
-      ${d.key_benefits?`<div style="background:${theme.primary_color}08;border:1px solid ${theme.primary_color}20;border-radius:6px;padding:12px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};letter-spacing:1px;margin-bottom:4px;">TEMEL AVANTAJLAR</div><p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits')}">${esc(d.key_benefits)}</p></div>`:''}
+      ${d.applications?`<div style="margin-bottom:10px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};letter-spacing:1px;margin-bottom:4px;">${esc(d.label_applications || 'UYGULAMA ALANLARI')}</div><p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'applications')}">${esc(d.applications)}</p></div>`:''}
+      ${d.key_benefits?`<div style="background:${theme.primary_color}08;border:1px solid ${theme.primary_color}20;border-radius:6px;padding:12px;"><div style="font-size:9px;font-weight:700;color:${theme.primary_color};letter-spacing:1px;margin-bottom:4px;">${esc(d.label_benefits || 'TEMEL AVANTAJLAR')}</div><p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits')}">${esc(d.key_benefits)}</p></div>`:''}
     </div>
     ${isLayerVisible(layerMap,'footer') ? footerBar(theme) : ''}
     ${renderShapeLayers(d, layerMap)}
@@ -295,10 +304,12 @@ function techDataSheet(data, theme, effects = {}) {
 
 // ========== TEMPLATE 5: Photo Dominant ==========
 function photoDominant(data, theme, effects = {}) {
-  const d = normalizeContent(data); const c = d;
+  const d = normalizeContent(data);
+  const c = d;
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:${theme.background_color || "#ffffff"};`)}">
+
     ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${d.image_fit||'cover'};" />`:`<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1e293b,#0f172a);"></div>`}
     <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.5) 50%,rgba(0,0,0,0.85) 100%);"></div>
     <div style="position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:50px 40px;overflow:hidden;">
@@ -325,7 +336,7 @@ function geometricCorporate(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;background:#fff;">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
     ${headerBar(theme)}
     <div style="height:calc(100% - 90px);overflow:hidden;">
       <div style="background:${theme.primary_color};padding:30px 32px;color:#fff;">
@@ -393,7 +404,7 @@ function cleanIndustrialGrid(data, theme, effects = {}) {
   const layerMap = getLayerMap(d.layers);
   const icons = ['&#9881;','&#9889;','&#9878;','&#9850;','&#10003;','&#9733;','&#9830;','&#9824;'];
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;background:#fff;">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
     ${headerBar(theme)}
     <div style="padding:24px 28px;height:calc(100% - 90px);overflow:hidden;">
       <div style="text-align:center;margin-bottom:20px;">
@@ -420,7 +431,7 @@ function greetingCard(data, theme, effects = {}) {
   const txt = d.text_color || '#ffffff';
   const isDark = bg !== '#ffffff' && bg !== '#fff';
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;background:${bg};">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color || bg, `background:${bg};`)}">
     <div style="position:absolute;top:36px;left:36px;right:36px;bottom:36px;border:2px solid ${txt}25;border-radius:16px;"></div>
     <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 50px;text-align:center;overflow:hidden;">
       ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="max-width:180px;max-height:180px;object-fit:contain;margin-bottom:24px;border-radius:10px;" />`:''}
@@ -445,7 +456,7 @@ function condolenceCard(data, theme, effects = {}) {
   const d = normalizeContent(data);
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
-  <div class="page" style="width:794px;height:1123px;background:linear-gradient(180deg,#1e293b,#0f172a);">
+  <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:linear-gradient(180deg,#1e293b,#0f172a);")}">
     <div style="position:absolute;top:44px;left:44px;right:44px;bottom:44px;border:1px solid rgba(148,163,184,0.15);"></div>
     <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 60px;text-align:center;overflow:hidden;">
       <div style="width:60px;height:1px;background:linear-gradient(90deg,transparent,#64748b,transparent);margin-bottom:30px;"></div>
