@@ -146,7 +146,9 @@ export default function Editor() {
   const [themes, setThemes] = useState([]);
   const [showSafeArea, setShowSafeArea] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(true);
-  const [showGuides, setShowGuides] = useState(true);
+  const [showGuides, setShowGuides] = useState(false);
+  const [selectedGuide, setSelectedGuide] = useState(null);
+  const [uiMode, setUiMode] = useState('basic');
 
   // Collapsible sections
   const [openSections, setOpenSections] = useState({ content: true, image: true, effects: false, layers: true });
@@ -176,14 +178,17 @@ export default function Editor() {
   const [translateResult, setTranslateResult] = useState('');
   const [translateField, setTranslateField] = useState('');
 
+  const shouldShowGuide = (kind, id) => showGuides || (selectedGuide?.kind === kind && selectedGuide?.id === id);
+
   const getFieldBoxLabel = (field) => {
+    const labelOrDefault = (value, fallback) => (typeof value === 'string' && value.trim() ? value : fallback);
     const labels = {
       title: 'Baslik',
       subtitle: 'Alt Baslik',
       description: 'Aciklama',
-      bullets: selectedPage?.content?.label_features || 'TEKNIK OZELLIKLER',
-      applications: selectedPage?.content?.label_applications || 'UYGULAMA ALANLARI',
-      benefits: selectedPage?.content?.label_benefits || 'TEMEL AVANTAJLAR',
+      bullets: labelOrDefault(selectedPage?.content?.label_features, 'TEKNIK OZELLIKLER'),
+      applications: labelOrDefault(selectedPage?.content?.label_applications, 'UYGULAMA ALANLARI'),
+      benefits: labelOrDefault(selectedPage?.content?.label_benefits, 'TEMEL AVANTAJLAR'),
       cta: 'CTA',
     };
     return labels[field] || field;
@@ -244,6 +249,7 @@ export default function Editor() {
     if (!selectedPage) return;
     if (Array.isArray(selectedPage.content?.layers) && selectedPage.content.layers.length) setLayers(selectedPage.content.layers);
     if (selectedPage.content?.effects) setEffects(selectedPage.content.effects);
+    setSelectedGuide(null);
   }, [selectedPageId]);
   const savePage = async () => {
     if (!selectedPage) return;
@@ -421,6 +427,10 @@ export default function Editor() {
         </div>
         <div className="flex items-center gap-1.5">
           <Button variant="ghost" size="sm" className="h-7 text-[11px] text-zinc-400 hover:text-zinc-100" onClick={() => setShowTemplateDialog(true)} data-testid="template-btn"><LayoutTemplate className="w-3.5 h-3.5 mr-1" />Sablon</Button>
+          <div className="flex items-center rounded border border-zinc-800 overflow-hidden">
+            <button className={`px-2 h-7 text-[10px] ${uiMode === 'basic' ? 'bg-[#004aad] text-white' : 'text-zinc-400 hover:bg-zinc-800/60'}`} onClick={() => setUiMode('basic')} title="Basit Mod">Basit</button>
+            <button className={`px-2 h-7 text-[10px] ${uiMode === 'advanced' ? 'bg-[#004aad] text-white' : 'text-zinc-400 hover:bg-zinc-800/60'}`} onClick={() => setUiMode('advanced')} title="Gelismis Mod">Gelismis</button>
+          </div>
           <div className="flex items-center gap-1 border border-zinc-800 rounded px-1.5 py-0.5">
             <span className="text-[10px] text-zinc-500">Safe</span>
             <Switch checked={showSafeArea} onCheckedChange={setShowSafeArea} className="scale-[0.6] data-[state=checked]:bg-[#004aad]" />
@@ -470,9 +480,13 @@ export default function Editor() {
             <div className="relative max-w-[580px] w-full animate-fade-in">
               <div ref={previewRef} className="bg-white paper-shadow a4-ratio w-full overflow-hidden relative" data-testid="canvas-preview">
                 <div dangerouslySetInnerHTML={{ __html: previewHTML }} style={{ width: '100%', height: '100%' }} />
-                {Object.entries(selectedPage?.content?.field_boxes || {}).map(([field, box]) => (
+                {Object.entries(selectedPage?.content?.field_boxes || {}).map(([field, box]) => {
+                  const visible = shouldShowGuide('field', field);
+                  if (!visible) return null;
+                  return (
                   <div
                     key={`fb-${field}`}
+                    onClick={() => setSelectedGuide({ kind: 'field', id: field })}
                     draggable
                     onDragEnd={(e) => updateFieldBoxAt(field, calcPercentFromPoint(e.clientX, e.clientY))}
                     className="absolute border border-amber-400/80 bg-amber-200/10 cursor-move"
@@ -481,34 +495,79 @@ export default function Editor() {
                   >
                     <div className="text-[10px] text-amber-300 px-1">{getFieldBoxLabel(field)}</div>
                   </div>
-                ))}
-                {(selectedPage?.content?.shape_layers || []).map((sh, idx) => (
+                  );
+                })}
+                {(selectedPage?.content?.shape_layers || []).map((sh, idx) => {
+                  const shapeId = sh.id || idx;
+                  const visible = shouldShowGuide('shape', shapeId);
+                  if (!visible) return null;
+                  const type = sh?.type || 'rect';
+                  const baseStyle = {
+                    left: `${sh.x ?? 50}%`,
+                    top: `${sh.y ?? 50}%`,
+                    width: `${sh.width ?? 20}%`,
+                    height: `${sh.height ?? 10}%`,
+                    transform: `translate(-50%, -50%) rotate(${Number(sh?.rotation ?? 0)}deg)`,
+                    zIndex: 18,
+                    opacity: ((sh.opacity ?? 60) / 100),
+                  };
+                  const commonClass = `absolute border border-fuchsia-400/80 ${sh.locked ? 'cursor-not-allowed opacity-80' : 'cursor-move'}`;
+
+                  if (type === 'line') {
+                    const thickness = Number(sh?.thickness ?? 3);
+                    return (
+                      <div
+                        key={shapeId}
+                        draggable={!sh.locked}
+                        onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                        onClick={() => setSelectedGuide({ kind: 'shape', id: shapeId })}
+                        className={commonClass}
+                        style={{ ...baseStyle, height: `${thickness}px`, resize: 'horizontal', overflow: 'visible', background: sh.color || '#1e293b' }}
+                        title="Sekil katmani: line"
+                      />
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={shapeId}
+                      draggable={!sh.locked}
+                      onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                      onClick={() => setSelectedGuide({ kind: 'shape', id: shapeId })}
+                      className={commonClass}
+                      style={{ ...baseStyle, resize: 'both', overflow: 'hidden', background: sh.color || '#1e293b', borderRadius: type === 'circle' ? '9999px' : `${sh.borderRadius ?? 0}px` }}
+                      title={`Sekil katmani: ${type}`}
+                    />
+                  );
+                })}
+                {(selectedPage?.content?.overlay_images || []).map((ov, idx) => {
+                  const overlayId = ov.id || idx;
+                  const visible = shouldShowGuide('overlay', overlayId);
+                  if (!visible) return null;
+                  return (
                   <div
-                    key={sh.id || idx}
-                    draggable={!sh.locked}
-                    onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
-                    className={`absolute border border-fuchsia-400/80 ${sh.locked ? 'cursor-not-allowed opacity-80' : 'cursor-move'}`}
-                    style={{ left: `${sh.x ?? 50}%`, top: `${sh.y ?? 50}%`, width: `${sh.width ?? 20}%`, height: `${sh.height ?? 10}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 18, background: sh.color || '#1e293b', opacity: ((sh.opacity ?? 60) / 100), borderRadius: `${sh.borderRadius ?? 0}px` }}
-                    title="Sekil katmani"
-                  />
-                ))}
-                {(selectedPage?.content?.overlay_images || []).map((ov, idx) => (
-                  <div
-                    key={ov.id || idx}
+                    key={overlayId}
                     draggable
                     onDragEnd={(e) => updateOverlayAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onClick={() => setSelectedGuide({ kind: 'overlay', id: overlayId })}
                     className="absolute border border-[#004aad]/70 bg-black/10 cursor-move"
                     style={{ left: `${ov.x ?? 50}%`, top: `${ov.y ?? 50}%`, width: `${ov.width ?? 30}%`, height: `${ov.height ?? 30}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 20 }}
                     title="Surukle / boyutlandir"
                   >
                     {ov.image_data ? <img src={ov.image_data} alt="overlay" className="w-full h-full object-contain pointer-events-none" /> : null}
                   </div>
-                ))}
-                {(selectedPage?.content?.custom_text_boxes || []).map((tb, idx) => (
+                  );
+                })}
+                {(selectedPage?.content?.custom_text_boxes || []).map((tb, idx) => {
+                  const textId = tb.id || idx;
+                  const visible = shouldShowGuide('custom', textId);
+                  if (!visible) return null;
+                  return (
                   <div
-                    key={tb.id || idx}
+                    key={textId}
                     draggable
                     onDragEnd={(e) => updateTextBoxAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onClick={() => setSelectedGuide({ kind: 'custom', id: textId })}
                     className="absolute border border-emerald-400/80 bg-black/30 text-white p-1 cursor-move"
                     style={{ left: `${tb.x ?? 10}%`, top: `${tb.y ?? 10}%`, width: `${tb.width ?? 30}%`, height: `${tb.height ?? 12}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 21, fontSize: `${tb.fontSize ?? 14}px`, fontWeight: tb.bold ? 700 : 400, textAlign: tb.align || 'left' }}
                     contentEditable
@@ -518,7 +577,8 @@ export default function Editor() {
                   >
                     {tb.text}
                   </div>
-                ))}
+                  );
+                })}
                 {showGuides && <>
                   <div className="absolute left-1/2 top-0 bottom-0 w-px bg-cyan-300/30 pointer-events-none"></div>
                   <div className="absolute top-1/2 left-0 right-0 h-px bg-cyan-300/30 pointer-events-none"></div>
@@ -528,7 +588,7 @@ export default function Editor() {
             </div>
           </div>
 
-          {/* Layer Panel */}
+          {uiMode === 'advanced' && (
           <div className="bg-[#0f0f11] border-t border-zinc-800 px-3 py-2 shrink-0">
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider shrink-0">Layers</span>
@@ -547,12 +607,14 @@ export default function Editor() {
               ))}
             </div>
           </div>
+          )}
         </div>
 
         {/* Right - Properties */}
         <div className="w-[300px] bg-[#0f0f11] border-l border-zinc-800 flex flex-col shrink-0 h-full">
           <div className="px-3 py-2 border-b border-zinc-800 shrink-0">
             <h2 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Sayfa Ozellikleri</h2>
+            <p className="text-[10px] text-zinc-500 mt-1">Mod: {uiMode === 'basic' ? 'Basit (hizli duzenleme)' : 'Gelismis (tum kontroller)'}</p>
           </div>
           <ScrollArea className="flex-1">
             {selectedPage && (
@@ -564,63 +626,66 @@ export default function Editor() {
                     <ChevronRight className={`w-3 h-3 text-zinc-600 transition-transform ${openSections.content ? 'rotate-90' : ''}`} />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-3 px-1 pt-2">
-                    <div className="flex justify-end">
-                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { updatePageContent('field_boxes', { ...DEFAULT_FIELD_BOXES }); updatePageContent('shape_layers', DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }))); }}>Layout Sifirla (Template Default)</Button>
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] text-zinc-500">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { updatePageContent('field_boxes', { ...DEFAULT_FIELD_BOXES }); updatePageContent('shape_layers', DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }))); setSelectedGuide(null); }}>Layout Sifirla (Template Default)</Button>
                     </div>
                     {/* Title */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik</Label>
-                      <TypoControls field="title" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('title')} />
-                      <OverflowControls field="title" content={selectedPage.content} updateContent={updatePageContent} />
-                      <Input value={selectedPage.content?.title||""} onChange={(e) => updatePageContent('title',e.target.value)} placeholder="Urun basligi"
+                      {uiMode === 'advanced' && <TypoControls field="title" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('title')} />}
+                      {uiMode === 'advanced' && <OverflowControls field="title" content={selectedPage.content} updateContent={updatePageContent} />}
+                      <Input value={selectedPage.content?.title||""} onChange={(e) => updatePageContent('title',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'title' })} placeholder="Urun basligi"
                         className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600" data-testid="input-title" />
                     </div>
 
                     {/* Subtitle */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Alt Baslik</Label>
-                      <TypoControls field="subtitle" content={selectedPage.content} updateContent={updatePageContent} />
-                      <OverflowControls field="subtitle" content={selectedPage.content} updateContent={updatePageContent} />
-                      <Input value={selectedPage.content?.subtitle||""} onChange={(e) => updatePageContent('subtitle',e.target.value)} placeholder="Alt baslik"
+                      {uiMode === 'advanced' && <TypoControls field="subtitle" content={selectedPage.content} updateContent={updatePageContent} />}
+                      {uiMode === 'advanced' && <OverflowControls field="subtitle" content={selectedPage.content} updateContent={updatePageContent} />}
+                      <Input value={selectedPage.content?.subtitle||""} onChange={(e) => updatePageContent('subtitle',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'subtitle' })} placeholder="Alt baslik"
                         className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600" data-testid="input-subtitle" />
                     </div>
 
                     {/* Description */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Aciklama</Label>
-                      <TypoControls field="description" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('description')} />
-                      <OverflowControls field="description" content={selectedPage.content} updateContent={updatePageContent} />
-                      <Textarea value={selectedPage.content?.description||""} onChange={(e) => updatePageContent('description',e.target.value)} placeholder="Detayli aciklama" rows={3}
+                      {uiMode === 'advanced' && <TypoControls field="description" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('description')} />}
+                      {uiMode === 'advanced' && <OverflowControls field="description" content={selectedPage.content} updateContent={updatePageContent} />}
+                      <Textarea value={selectedPage.content?.description||""} onChange={(e) => updatePageContent('description',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'description' })} placeholder="Detayli aciklama" rows={3}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-desc" />
                     </div>
 
                     {/* Bullet Points */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Teknik Ozellikler</Label>
-                      <TypoControls field="bullets" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('bullet_points')} />
-                      <OverflowControls field="bullets" content={selectedPage.content} updateContent={updatePageContent} />
-                      <Textarea value={(selectedPage.content?.bullet_points||[]).join('\n')} onChange={(e) => updatePageContent('bullet_points',e.target.value.split('\n').filter(Boolean))} placeholder="Her satira bir ozellik" rows={3}
+                      {uiMode === 'advanced' && <TypoControls field="bullets" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('bullet_points')} />}
+                      {uiMode === 'advanced' && <OverflowControls field="bullets" content={selectedPage.content} updateContent={updatePageContent} />}
+                      <Textarea value={(selectedPage.content?.bullet_points||[]).join('\n')} onChange={(e) => updatePageContent('bullet_points',e.target.value.split('\n').filter(Boolean))} onFocus={() => setSelectedGuide({ kind: 'field', id: 'bullets' })} placeholder="Her satira bir ozellik" rows={3}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-bullets" />
                     </div>
 
                     {/* Applications */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Uygulama Alanlari</Label>
-                      <TypoControls field="applications" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('applications')} />
-                      <OverflowControls field="applications" content={selectedPage.content} updateContent={updatePageContent} />
-                      <Textarea value={selectedPage.content?.applications||""} onChange={(e) => updatePageContent('applications',e.target.value)} rows={2}
+                      {uiMode === 'advanced' && <TypoControls field="applications" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('applications')} />}
+                      {uiMode === 'advanced' && <OverflowControls field="applications" content={selectedPage.content} updateContent={updatePageContent} />}
+                      <Textarea value={selectedPage.content?.applications||""} onChange={(e) => updatePageContent('applications',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'applications' })} rows={2}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-apps" />
                     </div>
 
                     {/* Key Benefits */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Temel Avantajlar</Label>
-                      <TypoControls field="benefits" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('key_benefits')} />
-                      <OverflowControls field="benefits" content={selectedPage.content} updateContent={updatePageContent} />
-                      <Textarea value={selectedPage.content?.key_benefits||""} onChange={(e) => updatePageContent('key_benefits',e.target.value)} rows={2}
+                      {uiMode === 'advanced' && <TypoControls field="benefits" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('key_benefits')} />}
+                      {uiMode === 'advanced' && <OverflowControls field="benefits" content={selectedPage.content} updateContent={updatePageContent} />}
+                      <Textarea value={selectedPage.content?.key_benefits||""} onChange={(e) => updatePageContent('key_benefits',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'benefits' })} rows={2}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-benefits" />
                     </div>
 
+                    {uiMode === 'advanced' && (
+                      <>
                     <div className="flex justify-end">
                       <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => updatePageContent('custom_text_boxes', [...(selectedPage.content?.custom_text_boxes || []), { id: `txt-${Date.now()}`, text: 'Yeni metin', x: 10, y: 10, width: 30, height: 12, fontSize: 14, color: '#ffffff', bold: false, align: 'left', zIndex: 7 }])}>
                         <Plus className="w-3 h-3 mr-1" />Serbest Metin
@@ -632,7 +697,7 @@ export default function Editor() {
                     <div className="space-y-1 border border-zinc-800 rounded p-1">
                       <p className="text-[10px] text-zinc-500">Shape Ayarlari</p>
                       {(selectedPage.content?.shape_layers || []).map((sh, idx) => (
-                        <div key={sh.id || idx} className="grid grid-cols-1 gap-1 items-center">
+                        <div key={sh.id || idx} className={`grid grid-cols-1 gap-1 items-center rounded ${selectedGuide?.kind === 'shape' && selectedGuide?.id === (sh.id || idx) ? 'ring-1 ring-fuchsia-400/70 p-1' : ''}`} onClick={() => setSelectedGuide({ kind: 'shape', id: sh.id || idx })}>
                           <div className="flex items-center justify-between gap-1">
                             <span className="text-[10px] text-zinc-400 truncate" title={sh.name || sh.id}>{sh.name || `shape-${idx+1}`}</span>
                             <button
@@ -671,6 +736,9 @@ export default function Editor() {
                         <Input value={selectedPage.content?.label_benefits||""} onChange={(e)=>updatePageContent('label_benefits',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
                       </div>
                     </div>
+
+                      </>
+                    )}
 
                     {/* CTA */}
                     <div>
@@ -757,7 +825,7 @@ export default function Editor() {
 
                 <Separator className="bg-zinc-800 my-1" />
 
-                {/* EFFECTS SECTION */}
+                {uiMode === 'advanced' && (
                 <Collapsible open={openSections.effects} onOpenChange={() => toggleSection('effects')}>
                   <CollapsibleTrigger className="section-header flex items-center justify-between w-full px-2 py-1.5 rounded">
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Efektler</span>
@@ -783,6 +851,7 @@ export default function Editor() {
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
+                )}
               </div>
             )}
           </ScrollArea>

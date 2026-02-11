@@ -85,6 +85,12 @@ export function normalizeContent(content = {}) {
     if (c[field.id] === undefined) c[field.id] = cloneDefault(field.defaultValue);
   });
 
+  ['label_alert', 'label_features', 'label_applications', 'label_benefits'].forEach((id) => {
+    const field = TEMPLATE_FIELD_REGISTRY.find((f) => f.id === id);
+    if (!field) return;
+    if (typeof c[id] !== 'string' || c[id].trim() === '') c[id] = field.defaultValue;
+  });
+
   Object.entries(FIELD_OVERFLOW_DEFAULTS).forEach(([field, cfg]) => {
     if (c[`${field}_overflow`] === undefined) c[`${field}_overflow`] = cfg.overflow;
     if (c[`${field}_clamp_lines`] === undefined) c[`${field}_clamp_lines`] = cfg.clampLines;
