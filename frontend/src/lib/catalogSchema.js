@@ -20,7 +20,6 @@ export const TEMPLATE_FIELD_REGISTRY = [
   { id: 'effects', label: 'Efektler', type: 'object', defaultValue: { grain_enabled: false, grain_intensity: 20 } },
 ];
 
-
 export const FIELD_ALIASES = {
   body: ['description', 'message'],
   description: ['body', 'message'],
