@@ -626,9 +626,14 @@ export default function Editor() {
                     <ChevronRight className={`w-3 h-3 text-zinc-600 transition-transform ${openSections.content ? 'rotate-90' : ''}`} />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-3 px-1 pt-2">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-2">
                       <p className="text-[10px] text-zinc-500">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
-                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { updatePageContent('field_boxes', { ...DEFAULT_FIELD_BOXES }); updatePageContent('shape_layers', DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }))); setSelectedGuide(null); }}>Layout Sifirla (Template Default)</Button>
+                      <div className="flex items-center gap-1">
+                        {uiMode === 'basic' && (
+                          <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { setUiMode('advanced'); setShowGuides(true); toast.success('Gelismis moda gecildi: kutulari tasiyip silebilirsiniz.'); }}>Kutulari Duzenle</Button>
+                        )}
+                        <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { updatePageContent('field_boxes', { ...DEFAULT_FIELD_BOXES }); updatePageContent('shape_layers', DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }))); setSelectedGuide(null); }}>Layout Sifirla (Template Default)</Button>
+                      </div>
                     </div>
                     {/* Title */}
                     <div>

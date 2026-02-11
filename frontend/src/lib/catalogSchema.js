@@ -56,9 +56,9 @@ export const DEFAULT_FIELD_BOXES = {
 
 
 export const DEFAULT_SHAPE_LAYERS = [
-  { id: 'shape-right-panel', type: 'rect', name: 'RightPanelBG', x: 84, y: 52, width: 32, height: 88, color: '#2f5f7a', opacity: 100, borderRadius: 0, zIndex: 5, locked: true },
-  { id: 'shape-footer-bar', type: 'rect', name: 'FooterBar', x: 50, y: 97.5, width: 100, height: 5, color: '#1f4a63', opacity: 100, borderRadius: 0, zIndex: 5, locked: true },
-  { id: 'shape-footer-accent', type: 'rect', name: 'FooterAccent', x: 95, y: 97.5, width: 10, height: 5, color: '#9ecb2d', opacity: 100, borderRadius: 0, zIndex: 6, locked: true },
+  { id: 'shape-right-panel', type: 'rect', name: 'RightPanelBG', x: 84, y: 52, width: 32, height: 88, color: '#2f5f7a', opacity: 100, borderRadius: 0, zIndex: 5, locked: false },
+  { id: 'shape-footer-bar', type: 'rect', name: 'FooterBar', x: 50, y: 97.5, width: 100, height: 5, color: '#1f4a63', opacity: 100, borderRadius: 0, zIndex: 5, locked: false },
+  { id: 'shape-footer-accent', type: 'rect', name: 'FooterAccent', x: 95, y: 97.5, width: 10, height: 5, color: '#9ecb2d', opacity: 100, borderRadius: 0, zIndex: 6, locked: false },
 ];
 function cloneDefault(value) {
   if (Array.isArray(value)) return [...value];
