@@ -176,6 +176,19 @@ export default function Editor() {
   const [translateResult, setTranslateResult] = useState('');
   const [translateField, setTranslateField] = useState('');
 
+  const getFieldBoxLabel = (field) => {
+    const labels = {
+      title: 'Baslik',
+      subtitle: 'Alt Baslik',
+      description: 'Aciklama',
+      bullets: selectedPage?.content?.label_features || 'TEKNIK OZELLIKLER',
+      applications: selectedPage?.content?.label_applications || 'UYGULAMA ALANLARI',
+      benefits: selectedPage?.content?.label_benefits || 'TEMEL AVANTAJLAR',
+      cta: 'CTA',
+    };
+    return labels[field] || field;
+  };
+
   // Export
   const [exportFormat, setExportFormat] = useState('pdf');
   const [exportPreset, setExportPreset] = useState('a4-portrait');
@@ -464,9 +477,9 @@ export default function Editor() {
                     onDragEnd={(e) => updateFieldBoxAt(field, calcPercentFromPoint(e.clientX, e.clientY))}
                     className="absolute border border-amber-400/80 bg-amber-200/10 cursor-move"
                     style={{ left: `${box.x ?? 50}%`, top: `${box.y ?? 50}%`, width: `${box.width ?? 30}%`, height: `${box.height ?? 10}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 19 }}
-                    title={`Alan kutusu: ${field}`}
+                    title={`Alan kutusu: ${getFieldBoxLabel(field)}`}
                   >
-                    <div className="text-[10px] text-amber-300 px-1">{field}</div>
+                    <div className="text-[10px] text-amber-300 px-1">{getFieldBoxLabel(field)}</div>
                   </div>
                 ))}
                 {(selectedPage?.content?.shape_layers || []).map((sh, idx) => (

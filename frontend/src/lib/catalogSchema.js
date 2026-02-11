@@ -92,7 +92,7 @@ export function normalizeContent(content = {}) {
   });
 
   if (!c.field_boxes) c.field_boxes = { ...DEFAULT_FIELD_BOXES };
-  if (!Array.isArray(c.shape_layers) || c.shape_layers.length === 0) c.shape_layers = DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }));
+  if (!Array.isArray(c.shape_layers)) c.shape_layers = DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }));
 
   return c;
 }
