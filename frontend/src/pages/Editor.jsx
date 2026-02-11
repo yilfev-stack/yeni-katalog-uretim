@@ -20,6 +20,7 @@ import {
   ChevronDown, ChevronRight, Loader2, Scissors, Palette, Bold, Italic, Type
 } from "lucide-react";
 import { TEMPLATES, TEMPLATE_CATEGORIES, generateTemplateHTML, DEFAULT_THEME } from "@/lib/templateEngine";
+import { normalizeCatalog, normalizeContent, DEFAULT_FIELD_BOXES, DEFAULT_SHAPE_LAYERS } from "@/lib/catalogSchema";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -80,10 +81,57 @@ function TypoControls({ field, content, updateContent, onTranslate }) {
   );
 }
 
+
+function OverflowControls({ field, content, updateContent }) {
+  const mode = content?.[`${field}_overflow`] || 'autofit';
+  const clampLines = content?.[`${field}_clamp_lines`] || 3;
+  const minSize = content?.[`${field}_min_size`] || 10;
+
+  return (
+    <div className="flex items-center gap-1 mb-1.5">
+      <Select value={mode} onValueChange={(v) => updateContent(`${field}_overflow`, v)}>
+        <SelectTrigger className="h-6 w-[90px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300 px-1.5">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="bg-zinc-900 border-zinc-800">
+          <SelectItem value="autofit" className="text-xs">Auto-fit</SelectItem>
+          <SelectItem value="wrap" className="text-xs">Wrap</SelectItem>
+          <SelectItem value="clamp" className="text-xs">Clamp</SelectItem>
+          <SelectItem value="ellipsis" className="text-xs">Ellipsis</SelectItem>
+        </SelectContent>
+      </Select>
+      {mode === 'clamp' && (
+        <Input
+          type="number"
+          min={1}
+          max={10}
+          value={clampLines}
+          onChange={(e) => updateContent(`${field}_clamp_lines`, Number(e.target.value) || 3)}
+          className="h-6 w-[52px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300"
+          title="Satir"
+        />
+      )}
+      {mode === 'autofit' && (
+        <Input
+          type="number"
+          min={8}
+          max={48}
+          value={minSize}
+          onChange={(e) => updateContent(`${field}_min_size`, Number(e.target.value) || 10)}
+          className="h-6 w-[60px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300"
+          title="Min px"
+        />
+      )}
+    </div>
+  );
+}
+
 export default function Editor() {
   const { catalogId } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const overlayInputRef = useRef(null);
+  const previewRef = useRef(null);
 
   const [catalog, setCatalog] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,6 +145,8 @@ export default function Editor() {
   const [activeTheme, setActiveTheme] = useState(DEFAULT_THEME);
   const [themes, setThemes] = useState([]);
   const [showSafeArea, setShowSafeArea] = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [showGuides, setShowGuides] = useState(true);
 
   // Collapsible sections
   const [openSections, setOpenSections] = useState({ content: true, image: true, effects: false, layers: true });
@@ -108,6 +158,9 @@ export default function Editor() {
     { id: 'image', name: 'Gorsel', visible: true, locked: false },
     { id: 'title', name: 'Baslik', visible: true, locked: false },
     { id: 'content', name: 'Icerik', visible: true, locked: false },
+    { id: 'shapes', name: 'Sekiller', visible: true, locked: false },
+    { id: 'overlay-images', name: 'Ek Gorseller', visible: true, locked: false },
+    { id: 'custom-text', name: 'Serbest Metin', visible: true, locked: false },
     { id: 'footer', name: 'Footer', visible: true, locked: true },
   ]);
 
@@ -123,6 +176,19 @@ export default function Editor() {
   const [translateResult, setTranslateResult] = useState('');
   const [translateField, setTranslateField] = useState('');
 
+  const getFieldBoxLabel = (field) => {
+    const labels = {
+      title: 'Baslik',
+      subtitle: 'Alt Baslik',
+      description: 'Aciklama',
+      bullets: selectedPage?.content?.label_features || 'TEKNIK OZELLIKLER',
+      applications: selectedPage?.content?.label_applications || 'UYGULAMA ALANLARI',
+      benefits: selectedPage?.content?.label_benefits || 'TEMEL AVANTAJLAR',
+      cta: 'CTA',
+    };
+    return labels[field] || field;
+  };
+
   // Export
   const [exportFormat, setExportFormat] = useState('pdf');
   const [exportPreset, setExportPreset] = useState('a4-portrait');
@@ -132,6 +198,7 @@ export default function Editor() {
   const [batchPresets, setBatchPresets] = useState({ 'a4-portrait': true, '1080x1080': true, '1080x1350': true, '1200x628': true, '1920x1080': false });
 
   const [removingBg, setRemovingBg] = useState(false);
+  const [overlayTargetIndex, setOverlayTargetIndex] = useState(null);
 
   const fetchCatalog = useCallback(async () => {
     try {
@@ -140,11 +207,12 @@ export default function Editor() {
         axios.get(`${API}/catalogs/${catalogId}`),
         axios.get(`${API}/themes`)
       ]);
-      setCatalog(catRes.data);
+      const normalized = normalizeCatalog(catRes.data);
+      setCatalog(normalized);
       setThemes(themeRes.data);
       const ct = themeRes.data.find(t => t.id === catRes.data.theme_id);
       if (ct) setActiveTheme(ct);
-      if (catRes.data.pages?.length > 0 && !selectedPageId) setSelectedPageId(catRes.data.pages[0].id);
+      if (normalized.pages?.length > 0 && !selectedPageId) setSelectedPageId(normalized.pages[0].id);
     } catch { toast.error("Katalog yuklenemedi"); navigate("/"); }
     finally { setLoading(false); }
   }, [catalogId, navigate, selectedPageId]);
@@ -153,13 +221,30 @@ export default function Editor() {
 
   const selectedPage = catalog?.pages?.find(p => p.id === selectedPageId);
   const currentTemplateId = selectedPage?.content?.template_id || 'industrial-product-alert';
-  const previewHTML = selectedPage ? generateTemplateHTML(currentTemplateId, selectedPage.content, activeTheme, effects) : '';
+  const activeEffects = selectedPage?.content?.effects || effects;
+  const previewHTML = selectedPage ? generateTemplateHTML(currentTemplateId, selectedPage.content, activeTheme, activeEffects) : '';
 
   const updatePageContent = (field, value) => {
     if (!selectedPage) return;
-    setCatalog(prev => ({ ...prev, pages: prev.pages.map(p => p.id === selectedPageId ? { ...p, content: { ...p.content, [field]: value } } : p) }));
+    setCatalog(prev => ({ ...prev, pages: prev.pages.map(p => p.id === selectedPageId ? { ...p, content: normalizeContent({ ...p.content, [field]: value }) } : p) }));
   };
 
+  const updateLayers = (nextLayers) => {
+    setLayers(nextLayers);
+    updatePageContent('layers', nextLayers);
+  };
+
+  const updateEffects = (nextEffects) => {
+    setEffects(nextEffects);
+    updatePageContent('effects', nextEffects);
+  };
+
+
+  useEffect(() => {
+    if (!selectedPage) return;
+    if (Array.isArray(selectedPage.content?.layers) && selectedPage.content.layers.length) setLayers(selectedPage.content.layers);
+    if (selectedPage.content?.effects) setEffects(selectedPage.content.effects);
+  }, [selectedPageId]);
   const savePage = async () => {
     if (!selectedPage) return;
     try { setSaving(true); await axios.put(`${API}/catalogs/${catalogId}/pages/${selectedPageId}`, { content: selectedPage.content }); toast.success("Kaydedildi"); }
@@ -186,21 +271,52 @@ export default function Editor() {
     } catch(e) { /* continue even if save fails */ }
     // Only change template_id, preserve ALL other content
     updatePageContent('template_id', tid);
+    updatePageContent('content_schema_version', 'v1');
     setShowTemplateDialog(false);
     toast.success("Sablon uygulandi - icerik korundu");
   };
 
-  const handleImageUpload = async (e) => {
+  const handleImageUpload = async (e, target = 'base') => {
     const file = e.target.files?.[0]; if (!file) return;
-    try { const fd = new FormData(); fd.append('file', file); const r = await axios.post(`${API}/upload-image`, fd); updatePageContent('image_data', r.data.image_data); toast.success("Yuklendi"); }
-    catch { toast.error("Yuklenemedi"); }
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await axios.post(`${API}/upload-image`, fd);
+      if (target === 'base') {
+        updatePageContent('image_data', r.data.image_data);
+      } else {
+        const overlays = [...(selectedPage?.content?.overlay_images || [])];
+        if (typeof target === 'number' && overlays[target]) overlays[target].image_data = r.data.image_data;
+        else overlays.push({ id: `ov-${Date.now()}`, image_data: r.data.image_data, x: 50, y: 50, width: 30, height: 30, fit: 'contain', opacity: 100, rotation: 0, zIndex: 6 });
+        updatePageContent('overlay_images', overlays);
+      }
+      toast.success("Yuklendi");
+    } catch { toast.error("Yuklenemedi"); }
+    finally { e.target.value = ''; }
   };
 
-  const handleRemoveBg = async () => {
-    if (!selectedPage?.content?.image_data) return;
+  const handleRemoveBg = async (target = 'base', overlayIndex = null) => {
+    const targetImage = target === 'base'
+      ? selectedPage?.content?.image_data
+      : selectedPage?.content?.overlay_images?.[overlayIndex]?.image_data;
+    if (!targetImage) return;
     setRemovingBg(true);
-    try { const blob = await fetch(selectedPage.content.image_data).then(r=>r.blob()); const fd = new FormData(); fd.append('file', blob, 'img.jpg'); fd.append('feather', String(effects.feather));
-      const r = await axios.post(`${API}/remove-bg`, fd, {timeout:120000}); updatePageContent('image_data', r.data.image_data); toast.success("Arka plan kaldirildi");
+    try {
+      const blob = await fetch(targetImage).then(r=>r.blob());
+      const fd = new FormData();
+      fd.append('file', blob, 'img.png');
+      fd.append('feather', String(effects.feather));
+      const r = await axios.post(`${API}/remove-bg`, fd, {timeout:120000});
+      if (target === 'base') {
+        updatePageContent('image_data', r.data.image_data);
+      } else {
+        const overlays = [...(selectedPage?.content?.overlay_images || [])];
+        if (overlays[overlayIndex]) {
+          overlays[overlayIndex] = { ...overlays[overlayIndex], image_data: r.data.image_data };
+          updatePageContent('overlay_images', overlays);
+        }
+      }
+      toast.success("Arka plan kaldirildi");
     } catch(e) { toast.error(e.response?.data?.detail || "Hata"); } finally { setRemovingBg(false); }
   };
 
@@ -249,7 +365,49 @@ export default function Editor() {
     } catch(e) { toast.error("Export hatasi"); } finally { setExporting(false); setShowExportDialog(false); }
   };
 
-  const moveLayer = (id, dir) => { const i = layers.findIndex(l=>l.id===id); const ni = dir==='up'?i-1:i+1; if(ni<0||ni>=layers.length)return; const nl=[...layers]; [nl[i],nl[ni]]=[nl[ni],nl[i]]; setLayers(nl); };
+  const moveLayer = (id, dir) => { const i = layers.findIndex(l=>l.id===id); const ni = dir==='up'?i-1:i+1; if(ni<0||ni>=layers.length)return; const nl=[...layers]; [nl[i],nl[ni]]=[nl[ni],nl[i]]; updateLayers(nl); };
+
+
+  const updateOverlayAt = (idx, patch) => {
+    const arr = [...(selectedPage?.content?.overlay_images || [])];
+    if (!arr[idx]) return;
+    arr[idx] = { ...arr[idx], ...patch };
+    updatePageContent('overlay_images', arr);
+  };
+
+  const updateFieldBoxAt = (field, patch) => {
+    const fieldBoxes = { ...(selectedPage?.content?.field_boxes || DEFAULT_FIELD_BOXES) };
+    fieldBoxes[field] = { ...(fieldBoxes[field] || {}), ...patch };
+    updatePageContent('field_boxes', fieldBoxes);
+  };
+
+  const updateShapeAt = (idx, patch) => {
+    const arr = [...(selectedPage?.content?.shape_layers || [])];
+    if (!arr[idx]) return;
+    arr[idx] = { ...arr[idx], ...patch };
+    updatePageContent('shape_layers', arr);
+  };
+
+  const updateTextBoxAt = (idx, patch) => {
+    const arr = [...(selectedPage?.content?.custom_text_boxes || [])];
+    if (!arr[idx]) return;
+    arr[idx] = { ...arr[idx], ...patch };
+    updatePageContent('custom_text_boxes', arr);
+  };
+
+  const calcPercentFromPoint = (clientX, clientY) => {
+    const el = previewRef.current;
+    if (!el) return { x: 50, y: 50 };
+    const rect = el.getBoundingClientRect();
+    let x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+    let y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
+    if (snapToGrid) {
+      const g = 2;
+      x = Math.round(x / g) * g;
+      y = Math.round(y / g) * g;
+    }
+    return { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) };
+  };
 
   if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-[#004aad] border-t-transparent rounded-full"></div></div>;
 
@@ -266,6 +424,14 @@ export default function Editor() {
           <div className="flex items-center gap-1 border border-zinc-800 rounded px-1.5 py-0.5">
             <span className="text-[10px] text-zinc-500">Safe</span>
             <Switch checked={showSafeArea} onCheckedChange={setShowSafeArea} className="scale-[0.6] data-[state=checked]:bg-[#004aad]" />
+          </div>
+          <div className="flex items-center gap-1 border border-zinc-800 rounded px-1.5 py-0.5">
+            <span className="text-[10px] text-zinc-500">Snap</span>
+            <Switch checked={snapToGrid} onCheckedChange={setSnapToGrid} className="scale-[0.6] data-[state=checked]:bg-[#004aad]" />
+          </div>
+          <div className="flex items-center gap-1 border border-zinc-800 rounded px-1.5 py-0.5">
+            <span className="text-[10px] text-zinc-500">Guides</span>
+            <Switch checked={showGuides} onCheckedChange={setShowGuides} className="scale-[0.6] data-[state=checked]:bg-[#004aad]" />
           </div>
           <Select value={activeTheme.id||'demart-corporate'} onValueChange={(v) => {const t=themes.find(th=>th.id===v);if(t)setActiveTheme(t);}}>
             <SelectTrigger className="h-7 w-[130px] text-[10px] bg-zinc-900 border-zinc-800 text-zinc-300"><Palette className="w-3 h-3 mr-1 text-zinc-500" /><SelectValue /></SelectTrigger>
@@ -302,8 +468,61 @@ export default function Editor() {
         <div className="flex-1 canvas-bg overflow-auto flex flex-col">
           <div className="flex-1 p-6 flex items-start justify-center">
             <div className="relative max-w-[580px] w-full animate-fade-in">
-              <div className="bg-white paper-shadow a4-ratio w-full overflow-hidden relative" data-testid="canvas-preview">
+              <div ref={previewRef} className="bg-white paper-shadow a4-ratio w-full overflow-hidden relative" data-testid="canvas-preview">
                 <div dangerouslySetInnerHTML={{ __html: previewHTML }} style={{ width: '100%', height: '100%' }} />
+                {Object.entries(selectedPage?.content?.field_boxes || {}).map(([field, box]) => (
+                  <div
+                    key={`fb-${field}`}
+                    draggable
+                    onDragEnd={(e) => updateFieldBoxAt(field, calcPercentFromPoint(e.clientX, e.clientY))}
+                    className="absolute border border-amber-400/80 bg-amber-200/10 cursor-move"
+                    style={{ left: `${box.x ?? 50}%`, top: `${box.y ?? 50}%`, width: `${box.width ?? 30}%`, height: `${box.height ?? 10}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 19 }}
+                    title={`Alan kutusu: ${getFieldBoxLabel(field)}`}
+                  >
+                    <div className="text-[10px] text-amber-300 px-1">{getFieldBoxLabel(field)}</div>
+                  </div>
+                ))}
+                {(selectedPage?.content?.shape_layers || []).map((sh, idx) => (
+                  <div
+                    key={sh.id || idx}
+                    draggable={!sh.locked}
+                    onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    className={`absolute border border-fuchsia-400/80 ${sh.locked ? 'cursor-not-allowed opacity-80' : 'cursor-move'}`}
+                    style={{ left: `${sh.x ?? 50}%`, top: `${sh.y ?? 50}%`, width: `${sh.width ?? 20}%`, height: `${sh.height ?? 10}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 18, background: sh.color || '#1e293b', opacity: ((sh.opacity ?? 60) / 100), borderRadius: `${sh.borderRadius ?? 0}px` }}
+                    title="Sekil katmani"
+                  />
+                ))}
+                {(selectedPage?.content?.overlay_images || []).map((ov, idx) => (
+                  <div
+                    key={ov.id || idx}
+                    draggable
+                    onDragEnd={(e) => updateOverlayAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    className="absolute border border-[#004aad]/70 bg-black/10 cursor-move"
+                    style={{ left: `${ov.x ?? 50}%`, top: `${ov.y ?? 50}%`, width: `${ov.width ?? 30}%`, height: `${ov.height ?? 30}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 20 }}
+                    title="Surukle / boyutlandir"
+                  >
+                    {ov.image_data ? <img src={ov.image_data} alt="overlay" className="w-full h-full object-contain pointer-events-none" /> : null}
+                  </div>
+                ))}
+                {(selectedPage?.content?.custom_text_boxes || []).map((tb, idx) => (
+                  <div
+                    key={tb.id || idx}
+                    draggable
+                    onDragEnd={(e) => updateTextBoxAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    className="absolute border border-emerald-400/80 bg-black/30 text-white p-1 cursor-move"
+                    style={{ left: `${tb.x ?? 10}%`, top: `${tb.y ?? 10}%`, width: `${tb.width ?? 30}%`, height: `${tb.height ?? 12}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 21, fontSize: `${tb.fontSize ?? 14}px`, fontWeight: tb.bold ? 700 : 400, textAlign: tb.align || 'left' }}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(e) => updateTextBoxAt(idx, { text: e.currentTarget.innerText })}
+                    title="Surukle / boyutlandir / metni duzenle"
+                  >
+                    {tb.text}
+                  </div>
+                ))}
+                {showGuides && <>
+                  <div className="absolute left-1/2 top-0 bottom-0 w-px bg-cyan-300/30 pointer-events-none"></div>
+                  <div className="absolute top-1/2 left-0 right-0 h-px bg-cyan-300/30 pointer-events-none"></div>
+                </>}
                 {showSafeArea && <div className="safe-area-overlay"></div>}
               </div>
             </div>
@@ -315,15 +534,15 @@ export default function Editor() {
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider shrink-0">Layers</span>
               {layers.map(l => (
                 <div key={l.id} className="flex items-center gap-0.5 px-1.5 py-0.5 border border-zinc-800 rounded text-[10px] shrink-0 bg-zinc-900/50">
-                  <button onClick={() => setLayers(p=>p.map(x=>x.id===l.id?{...x,visible:!x.visible}:x))} className="text-zinc-500 hover:text-zinc-300">
+                  <button title="Katmani goster/gizle" onClick={() => updateLayers(layers.map(x=>x.id===l.id?{...x,visible:!x.visible}:x))} className="text-zinc-500 hover:text-zinc-300">
                     {l.visible ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5 text-zinc-700" />}
                   </button>
-                  <button onClick={() => setLayers(p=>p.map(x=>x.id===l.id?{...x,locked:!x.locked}:x))} className="text-zinc-500 hover:text-zinc-300">
+                  <button title="Katmani kilitle/ac" onClick={() => updateLayers(layers.map(x=>x.id===l.id?{...x,locked:!x.locked}:x))} className="text-zinc-500 hover:text-zinc-300">
                     {l.locked ? <Lock className="w-2.5 h-2.5 text-red-500/50" /> : <Unlock className="w-2.5 h-2.5" />}
                   </button>
                   <span className={l.visible ? 'text-zinc-400' : 'text-zinc-700 line-through'}>{l.name}</span>
-                  <button onClick={() => moveLayer(l.id,'up')} className="text-zinc-600 hover:text-zinc-400"><ChevronUp className="w-2.5 h-2.5" /></button>
-                  <button onClick={() => moveLayer(l.id,'down')} className="text-zinc-600 hover:text-zinc-400"><ChevronDown className="w-2.5 h-2.5" /></button>
+                  <button title="One getir" onClick={() => moveLayer(l.id,'up')} className="text-zinc-600 hover:text-zinc-400"><ChevronUp className="w-2.5 h-2.5" /></button>
+                  <button title="Arkaya gonder" onClick={() => moveLayer(l.id,'down')} className="text-zinc-600 hover:text-zinc-400"><ChevronDown className="w-2.5 h-2.5" /></button>
                 </div>
               ))}
             </div>
@@ -345,10 +564,14 @@ export default function Editor() {
                     <ChevronRight className={`w-3 h-3 text-zinc-600 transition-transform ${openSections.content ? 'rotate-90' : ''}`} />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-3 px-1 pt-2">
+                    <div className="flex justify-end">
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { updatePageContent('field_boxes', { ...DEFAULT_FIELD_BOXES }); updatePageContent('shape_layers', DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }))); }}>Layout Sifirla (Template Default)</Button>
+                    </div>
                     {/* Title */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik</Label>
                       <TypoControls field="title" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('title')} />
+                      <OverflowControls field="title" content={selectedPage.content} updateContent={updatePageContent} />
                       <Input value={selectedPage.content?.title||""} onChange={(e) => updatePageContent('title',e.target.value)} placeholder="Urun basligi"
                         className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600" data-testid="input-title" />
                     </div>
@@ -357,6 +580,7 @@ export default function Editor() {
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Alt Baslik</Label>
                       <TypoControls field="subtitle" content={selectedPage.content} updateContent={updatePageContent} />
+                      <OverflowControls field="subtitle" content={selectedPage.content} updateContent={updatePageContent} />
                       <Input value={selectedPage.content?.subtitle||""} onChange={(e) => updatePageContent('subtitle',e.target.value)} placeholder="Alt baslik"
                         className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600" data-testid="input-subtitle" />
                     </div>
@@ -365,6 +589,7 @@ export default function Editor() {
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Aciklama</Label>
                       <TypoControls field="description" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('description')} />
+                      <OverflowControls field="description" content={selectedPage.content} updateContent={updatePageContent} />
                       <Textarea value={selectedPage.content?.description||""} onChange={(e) => updatePageContent('description',e.target.value)} placeholder="Detayli aciklama" rows={3}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-desc" />
                     </div>
@@ -373,6 +598,7 @@ export default function Editor() {
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Teknik Ozellikler</Label>
                       <TypoControls field="bullets" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('bullet_points')} />
+                      <OverflowControls field="bullets" content={selectedPage.content} updateContent={updatePageContent} />
                       <Textarea value={(selectedPage.content?.bullet_points||[]).join('\n')} onChange={(e) => updatePageContent('bullet_points',e.target.value.split('\n').filter(Boolean))} placeholder="Her satira bir ozellik" rows={3}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-bullets" />
                     </div>
@@ -381,6 +607,7 @@ export default function Editor() {
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Uygulama Alanlari</Label>
                       <TypoControls field="applications" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('applications')} />
+                      <OverflowControls field="applications" content={selectedPage.content} updateContent={updatePageContent} />
                       <Textarea value={selectedPage.content?.applications||""} onChange={(e) => updatePageContent('applications',e.target.value)} rows={2}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-apps" />
                     </div>
@@ -389,8 +616,60 @@ export default function Editor() {
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Temel Avantajlar</Label>
                       <TypoControls field="benefits" content={selectedPage.content} updateContent={updatePageContent} onTranslate={() => translateText('key_benefits')} />
+                      <OverflowControls field="benefits" content={selectedPage.content} updateContent={updatePageContent} />
                       <Textarea value={selectedPage.content?.key_benefits||""} onChange={(e) => updatePageContent('key_benefits',e.target.value)} rows={2}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-benefits" />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => updatePageContent('custom_text_boxes', [...(selectedPage.content?.custom_text_boxes || []), { id: `txt-${Date.now()}`, text: 'Yeni metin', x: 10, y: 10, width: 30, height: 12, fontSize: 14, color: '#ffffff', bold: false, align: 'left', zIndex: 7 }])}>
+                        <Plus className="w-3 h-3 mr-1" />Serbest Metin
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300 ml-1" onClick={() => updatePageContent('shape_layers', [...(selectedPage.content?.shape_layers || []), { id: `sh-${Date.now()}`, type: 'rect', x: 80, y: 50, width: 20, height: 40, color: '#0f2f44', opacity: 80, borderRadius: 0, zIndex: 5, locked: false }])}>
+                        <Plus className="w-3 h-3 mr-1" />Sekil
+                      </Button>
+                    </div>
+                    <div className="space-y-1 border border-zinc-800 rounded p-1">
+                      <p className="text-[10px] text-zinc-500">Shape Ayarlari</p>
+                      {(selectedPage.content?.shape_layers || []).map((sh, idx) => (
+                        <div key={sh.id || idx} className="grid grid-cols-1 gap-1 items-center">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] text-zinc-400 truncate" title={sh.name || sh.id}>{sh.name || `shape-${idx+1}`}</span>
+                            <button
+                              className="h-7 w-7 flex items-center justify-center rounded bg-red-500/60 hover:bg-red-500/80"
+                              onClick={() => updatePageContent('shape_layers', (selectedPage.content?.shape_layers || []).filter((_, i) => i !== idx))}
+                              title="Shape sil"
+                            >
+                              <Trash2 className="w-4 h-4 text-white" />
+                            </button>
+                          </div>
+                          <input type="color" value={sh.color || '#0f2f44'} onChange={(e)=>updateShapeAt(idx,{color:e.target.value})} className="h-6 w-full bg-zinc-800 border border-zinc-700 rounded" />
+                          <Select value={sh.type || 'rect'} onValueChange={(v)=>updateShapeAt(idx,{type:v})}><SelectTrigger className="h-6 text-[10px] bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger><SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="rect">Rect</SelectItem><SelectItem value="circle">Circle</SelectItem><SelectItem value="line">Line</SelectItem></SelectContent></Select>
+                          <Input type="number" value={sh.zIndex ?? 5} onChange={(e)=>updateShapeAt(idx,{zIndex:Number(e.target.value)||5})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" />
+                          <button className="h-6 text-[10px] border border-zinc-700 rounded text-zinc-300" onClick={()=>updateShapeAt(idx,{locked:!sh.locked})}>{sh.locked ? 'Unlock':'Lock'}</button>
+                          <Input type="number" value={sh.rotation ?? 0} onChange={(e)=>updateShapeAt(idx,{rotation:Number(e.target.value)||0})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Rot" />
+                          {(sh.type === 'line') && <Input type="number" value={sh.thickness ?? 3} onChange={(e)=>updateShapeAt(idx,{thickness:Number(e.target.value)||3})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="px" />}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1">
+                      <div>
+                        <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Uyari</Label>
+                        <Input value={selectedPage.content?.label_alert||""} onChange={(e)=>updatePageContent('label_alert',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Ozellik</Label>
+                        <Input value={selectedPage.content?.label_features||""} onChange={(e)=>updatePageContent('label_features',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Uygulama</Label>
+                        <Input value={selectedPage.content?.label_applications||""} onChange={(e)=>updatePageContent('label_applications',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Avantaj</Label>
+                        <Input value={selectedPage.content?.label_benefits||""} onChange={(e)=>updatePageContent('label_benefits',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                      </div>
                     </div>
 
                     {/* CTA */}
@@ -398,6 +677,18 @@ export default function Editor() {
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">CTA Butonu</Label>
                       <Input value={selectedPage.content?.cta_text||""} onChange={(e) => updatePageContent('cta_text',e.target.value)} placeholder="Detayli Bilgi"
                         className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" data-testid="input-cta" />
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-800 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-zinc-500 uppercase">Katman Gorselleri (Coklu)</span>
+                        <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { setOverlayTargetIndex(null); overlayInputRef.current?.click(); }}>
+                          <Plus className="w-3 h-3 mr-1" />Yeni Overlay
+                        </Button>
+                      </div>
+                      {!(selectedPage.content?.overlay_images || []).length && (
+                        <p className="text-[10px] text-zinc-500">Birden fazla gorsel ekleyebilir, ust uste konumlandirabilirsiniz.</p>
+                      )}
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
@@ -411,7 +702,8 @@ export default function Editor() {
                     <ChevronRight className={`w-3 h-3 text-zinc-600 transition-transform ${openSections.image ? 'rotate-90' : ''}`} />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="px-1 pt-2 space-y-2">
-                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" data-testid="file-input" />
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={(e)=>handleImageUpload(e,'base')} className="hidden" data-testid="file-input" />
+                    <input ref={overlayInputRef} type="file" accept="image/*" onChange={(e)=>handleImageUpload(e,overlayTargetIndex ?? 'new')} className="hidden" />
                     {!selectedPage.content?.image_data ? (
                       <div className="border border-dashed border-zinc-700 rounded p-4 text-center cursor-pointer hover:border-[#004aad]/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
                         <Upload className="w-6 h-6 text-zinc-600 mx-auto mb-1" /><p className="text-[10px] text-zinc-500">Gorsel Yukle (PNG, JPG, SVG)</p>
@@ -422,7 +714,7 @@ export default function Editor() {
                           <img src={selectedPage.content.image_data} alt="" className="w-full h-full object-contain" />
                           <div className="absolute top-1 right-1 flex gap-1">
                             <button className="p-1 rounded bg-black/60 hover:bg-black/80" onClick={() => fileInputRef.current?.click()}><Upload className="w-3 h-3 text-white" /></button>
-                            <button className="p-1 rounded bg-red-500/60 hover:bg-red-500/80" onClick={() => updatePageContent('image_data',null)}><X className="w-3 h-3 text-white" /></button>
+                            <button className="h-7 w-7 flex items-center justify-center rounded bg-red-500/60 hover:bg-red-500/80" onClick={() => updatePageContent('image_data',null)}><X className="w-4 h-4 text-white" /></button>
                           </div>
                         </div>
                         <div className="flex gap-1">
@@ -430,9 +722,33 @@ export default function Editor() {
                             <SelectTrigger className="h-7 text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300"><SelectValue /></SelectTrigger>
                             <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="cover" className="text-xs">Kapla</SelectItem><SelectItem value="contain" className="text-xs">Sigdir</SelectItem><SelectItem value="fill" className="text-xs">Doldur</SelectItem></SelectContent>
                           </Select>
-                          <Button variant="outline" size="sm" className="h-7 text-[10px] border-zinc-700 text-zinc-300" onClick={handleRemoveBg} disabled={removingBg} data-testid="remove-bg-btn">
+                          <Button variant="outline" size="sm" className="h-7 text-[10px] border-zinc-700 text-zinc-300" onClick={() => handleRemoveBg('base')} disabled={removingBg} data-testid="remove-bg-btn">
                             {removingBg ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Scissors className="w-3 h-3 mr-1" />BG Sil</>}
                           </Button>
+                        </div>
+                        <div className="pt-2 border-t border-zinc-800 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-zinc-500 uppercase">Katman Gorselleri</span>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { setOverlayTargetIndex(null); overlayInputRef.current?.click(); }}>
+                              <Plus className="w-3 h-3 mr-1" />Yeni
+                            </Button>
+                          </div>
+                          {(selectedPage.content?.overlay_images || []).map((ov, idx) => (
+                            <div key={ov.id || idx} className="bg-zinc-900/50 p-1.5 rounded border border-zinc-800 space-y-1">
+                              <div className="flex items-center gap-1">
+                                <button className="p-1 rounded bg-zinc-800" onClick={() => { setOverlayTargetIndex(idx); overlayInputRef.current?.click(); }}><Upload className="w-3 h-3 text-zinc-300" /></button>
+                                <button className="h-7 w-7 flex items-center justify-center rounded bg-red-500/60 hover:bg-red-500/80" onClick={() => updatePageContent('overlay_images', (selectedPage.content?.overlay_images || []).filter((_,i)=>i!==idx))}><Trash2 className="w-4 h-4 text-white" /></button>
+                                <button className="p-1 rounded bg-zinc-700" onClick={() => handleRemoveBg('overlay', idx)} title="Bu katmanda arka plan sil"><Scissors className="w-3 h-3 text-white" /></button>
+                                <span className="text-[10px] text-zinc-400">Katman {idx+1}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1">
+                                <Input value={ov.x ?? 50} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,x:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="X%" />
+                                <Input value={ov.y ?? 50} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,y:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Y%" />
+                                <Input value={ov.width ?? 30} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,width:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="W%" />
+                                <Input value={ov.height ?? 30} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,height:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="H%" />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -452,15 +768,15 @@ export default function Editor() {
                       <span className="text-[#004aad]">Hedef:</span> Secili layer'a uygulanir (Grain = global)
                     </div>
                     <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Feathering</span><span className="text-[10px] text-zinc-600">{effects.feather}px</span></div>
-                      <Slider value={[effects.feather]} onValueChange={([v]) => setEffects(p=>({...p,feather:v}))} max={20} className="mt-1" /></div>
+                      <Slider value={[effects.feather]} onValueChange={([v]) => updateEffects({...effects,feather:v})} max={20} className="mt-1" /></div>
                     <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Shadow</span><span className="text-[10px] text-zinc-600">{effects.shadow}%</span></div>
-                      <Slider value={[effects.shadow]} onValueChange={([v]) => setEffects(p=>({...p,shadow:v}))} max={100} step={5} className="mt-1" /></div>
+                      <Slider value={[effects.shadow]} onValueChange={([v]) => updateEffects({...effects,shadow:v})} max={100} step={5} className="mt-1" /></div>
                     <div className="flex items-center justify-between"><span className="text-[10px] text-zinc-500">Grain</span>
-                      <Switch checked={effects.grain_enabled} onCheckedChange={(v) => setEffects(p=>({...p,grain_enabled:v}))} className="scale-[0.6] data-[state=checked]:bg-[#004aad]" /></div>
+                      <Switch checked={effects.grain_enabled} onCheckedChange={(v) => updateEffects({...effects,grain_enabled:v})} className="scale-[0.6] data-[state=checked]:bg-[#004aad]" /></div>
                     {effects.grain_enabled && <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Yogunluk</span><span className="text-[10px] text-zinc-600">{effects.grain_intensity}%</span></div>
-                      <Slider value={[effects.grain_intensity]} onValueChange={([v]) => setEffects(p=>({...p,grain_intensity:v}))} max={50} className="mt-1" /></div>}
+                      <Slider value={[effects.grain_intensity]} onValueChange={([v]) => updateEffects({...effects,grain_intensity:v})} max={50} className="mt-1" /></div>}
                     <div><span className="text-[10px] text-zinc-500">Blend</span>
-                      <Select value={effects.blend} onValueChange={(v) => setEffects(p=>({...p,blend:v}))}>
+                      <Select value={effects.blend} onValueChange={(v) => updateEffects({...effects,blend:v})}>
                         <SelectTrigger className="h-7 text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300 mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="normal">Normal</SelectItem><SelectItem value="multiply">Multiply</SelectItem><SelectItem value="screen">Screen</SelectItem><SelectItem value="overlay">Overlay</SelectItem></SelectContent>
                       </Select>
