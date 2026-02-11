@@ -8,10 +8,10 @@ export const TEMPLATE_FIELD_REGISTRY = [
   { id: 'address', label: 'Adres', type: 'textarea', defaultValue: '' },
   { id: 'applications', label: 'Uygulama Alanlari', type: 'textarea', defaultValue: '' },
   { id: 'key_benefits', label: 'Temel Avantajlar', type: 'textarea', defaultValue: '' },
-  { id: 'label_alert', label: 'Uyari Basligi', type: 'text', defaultValue: 'PRODUCT ALERT!' },
-  { id: 'label_applications', label: 'Uygulama Basligi', type: 'text', defaultValue: 'UYGULAMA ALANLARI' },
-  { id: 'label_benefits', label: 'Avantaj Basligi', type: 'text', defaultValue: 'TEMEL AVANTAJLAR' },
-  { id: 'label_features', label: 'Ozellik Basligi', type: 'text', defaultValue: 'TEKNIK OZELLIKLER' },
+  { id: 'label_alert', label: 'Uyari Basligi', type: 'text', defaultValue: '' },
+  { id: 'label_applications', label: 'Uygulama Basligi', type: 'text', defaultValue: '' },
+  { id: 'label_benefits', label: 'Avantaj Basligi', type: 'text', defaultValue: '' },
+  { id: 'label_features', label: 'Ozellik Basligi', type: 'text', defaultValue: '' },
   { id: 'bullet_points', label: 'Madde Listesi', type: 'list', defaultValue: [] },
   { id: 'image_data', label: 'Ana Gorsel', type: 'image', defaultValue: null },
   { id: 'overlay_images', label: 'Ek Gorseller', type: 'image-list', defaultValue: [] },
@@ -83,12 +83,6 @@ export function normalizeContent(content = {}) {
 
   TEMPLATE_FIELD_REGISTRY.forEach((field) => {
     if (c[field.id] === undefined) c[field.id] = cloneDefault(field.defaultValue);
-  });
-
-  ['label_alert', 'label_features', 'label_applications', 'label_benefits'].forEach((id) => {
-    const field = TEMPLATE_FIELD_REGISTRY.find((f) => f.id === id);
-    if (!field) return;
-    if (typeof c[id] !== 'string' || c[id].trim() === '') c[id] = field.defaultValue;
   });
 
   Object.entries(FIELD_OVERFLOW_DEFAULTS).forEach(([field, cfg]) => {
