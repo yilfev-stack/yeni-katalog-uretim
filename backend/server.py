@@ -257,11 +257,13 @@ class ExportRequest(BaseModel):
     is_mm: bool = True
     landscape: bool = False
     optimize: bool = False
+    debug_html: bool = False
 
 class BatchExportRequest(BaseModel):
     html_content: str
     presets: List[dict] = []
     catalog_name: str = "export"
+    debug_html: bool = False
 
 class ExportRecord(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -804,6 +806,10 @@ async def export_pdf(req: ExportRequest):
         try:
             async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
                 await f.write(pdf_bytes)
+            if req.debug_html:
+                debug_path = EXPORTS_DIR / f"export_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                async with aiofiles.open(debug_path, 'w', encoding='utf-8') as hf:
+                    await hf.write(req.html_content)
         except Exception:
             pass
         return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={file_name}"})
@@ -838,6 +844,10 @@ async def export_image(req: ExportRequest):
         try:
             async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
                 await f.write(img_bytes)
+            if req.debug_html:
+                debug_path = EXPORTS_DIR / f"export_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                async with aiofiles.open(debug_path, 'w', encoding='utf-8') as hf:
+                    await hf.write(req.html_content)
         except Exception:
             pass
         record = ExportRecord(format=ext, size_preset=f"{w}x{h}", quality="web" if req.optimize else "high", file_size=len(img_bytes))
@@ -889,6 +899,10 @@ async def export_batch(req: BatchExportRequest):
     zip_name = f"{safe_name}_{date_str}_batch.zip"
     async with aiofiles.open(EXPORTS_DIR / zip_name, 'wb') as f:
         await f.write(zip_buffer.getvalue())
+    if req.debug_html:
+        debug_path = EXPORTS_DIR / f"export_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        async with aiofiles.open(debug_path, 'w', encoding='utf-8') as hf:
+            await hf.write(req.html_content)
     zip_buffer.seek(0)
     return StreamingResponse(zip_buffer, media_type="application/zip", headers={"Content-Disposition": f"attachment; filename={zip_name}"})
 

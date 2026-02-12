@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronRight, Loader2, Scissors, Palette, Bold, Italic, Type
 } from "lucide-react";
 import { TEMPLATES, TEMPLATE_CATEGORIES, generateTemplateHTML, DEFAULT_THEME } from "@/lib/templateEngine";
-import { normalizeCatalog, normalizeContent, DEFAULT_FIELD_BOXES, DEFAULT_SHAPE_LAYERS } from "@/lib/catalogSchema";
+import { normalizeCatalog, normalizeContent, DEFAULT_FIELD_BOXES, DEFAULT_SHAPE_LAYERS, DEFAULT_LAYER_GROUPS } from "@/lib/catalogSchema";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -46,6 +46,18 @@ function TypoControls({ field, content, updateContent, onTranslate }) {
   const italic = content?.[`${prefix}_italic`] || false;
   const color = content?.[`${prefix}_color`] || "";
 
+  const setFontSize = (nextSize) => {
+    const fontSize = Number(nextSize) || 14;
+    updateContent('field_style', {
+      ...(content?.field_style || {}),
+      [prefix]: {
+        ...(content?.field_style?.[prefix] || {}),
+        fontSize,
+      },
+    });
+    updateContent(`${prefix}_size`, fontSize);
+  };
+
   return (
     <div className="flex items-center gap-1 flex-wrap mb-1.5">
       <Select value={font} onValueChange={(v) => updateContent(`${prefix}_font`, v)}>
@@ -56,12 +68,13 @@ function TypoControls({ field, content, updateContent, onTranslate }) {
           {FONT_OPTIONS.map(f => <SelectItem key={f.id} value={f.id} className="text-xs" style={{fontFamily:f.id}}>{f.name}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Select value={String(size)} onValueChange={(v) => updateContent(`${prefix}_size`, parseInt(v))}>
+      <Select value={String(size)} onValueChange={(v) => setFontSize(parseInt(v, 10))}>
         <SelectTrigger className="h-6 w-[52px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300 px-1.5"><SelectValue /></SelectTrigger>
         <SelectContent className="bg-zinc-900 border-zinc-800">
           {FONT_SIZES.map(s => <SelectItem key={s} value={String(s)} className="text-xs">{s}px</SelectItem>)}
         </SelectContent>
       </Select>
+      <Input type="number" min={10} max={60} value={size} onChange={(e) => setFontSize(Number(e.target.value) || 14)} className="h-6 w-[56px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300" title="Font Size" />
       <button onClick={() => updateContent(`${prefix}_bold`, !bold)}
         className={`w-6 h-6 flex items-center justify-center rounded text-[10px] border ${bold ? 'bg-[#004aad] text-white border-[#004aad]' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'}`}>
         <Bold className="w-3 h-3" />
@@ -83,13 +96,38 @@ function TypoControls({ field, content, updateContent, onTranslate }) {
 
 
 function OverflowControls({ field, content, updateContent }) {
-  const mode = content?.[`${field}_overflow`] || 'autofit';
-  const clampLines = content?.[`${field}_clamp_lines`] || 3;
-  const minSize = content?.[`${field}_min_size`] || 10;
+  const cfg = content?.field_overflow?.[field] || {};
+  const mode = cfg.mode || content?.[`${field}_overflow`] || 'autofit';
+  const clampLines = Number(cfg.clampLines ?? content?.[`${field}_clamp_lines`] ?? 3);
+  const minSize = Number(cfg.minSize ?? content?.[`${field}_min_size`] ?? 10);
+
+  const textRaw = content?.[field];
+  const text = Array.isArray(textRaw) ? textRaw.join(' ') : (textRaw || '');
+  const fieldBox = content?.field_boxes?.[field] || {};
+  const widthFactor = Math.max(8, Number(fieldBox.width ?? 28));
+  const heightFactor = Math.max(4, Number(fieldBox.height ?? 10));
+  const baseSize = Number(content?.field_style?.[field]?.fontSize ?? content?.[`${field}_size`] ?? 14);
+  const computedFontSize = mode === 'autofit' ? Math.max(minSize, Math.min(baseSize, Math.floor((widthFactor * heightFactor) / Math.max(18, Math.sqrt(String(text).length || 1))))) : baseSize;
+
+  const patch = (key, value) => {
+    const next = {
+      ...(content?.field_overflow || {}),
+      [field]: {
+        mode,
+        clampLines,
+        minSize,
+        ...cfg,
+        [key]: value,
+      },
+    };
+    updateContent('field_overflow', next);
+  };
 
   return (
-    <div className="flex items-center gap-1 mb-1.5">
-      <Select value={mode} onValueChange={(v) => updateContent(`${field}_overflow`, v)}>
+    <div className="space-y-1 mb-1.5">
+      <div className="flex items-center gap-1">
+      <Label className="text-[9px] text-zinc-500 w-[46px]">Overflow</Label>
+      <Select value={mode} onValueChange={(v) => patch('mode', v)}>
         <SelectTrigger className="h-6 w-[90px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300 px-1.5">
           <SelectValue />
         </SelectTrigger>
@@ -106,9 +144,9 @@ function OverflowControls({ field, content, updateContent }) {
           min={1}
           max={10}
           value={clampLines}
-          onChange={(e) => updateContent(`${field}_clamp_lines`, Number(e.target.value) || 3)}
+          onChange={(e) => patch('clampLines', Number(e.target.value) || 3)}
           className="h-6 w-[52px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300"
-          title="Satir"
+          title="Clamp satir sayisi"
         />
       )}
       {mode === 'autofit' && (
@@ -117,14 +155,17 @@ function OverflowControls({ field, content, updateContent }) {
           min={8}
           max={48}
           value={minSize}
-          onChange={(e) => updateContent(`${field}_min_size`, Number(e.target.value) || 10)}
-          className="h-6 w-[60px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300"
-          title="Min px"
+          onChange={(e) => patch('minSize', Number(e.target.value) || 10)}
+          className="h-6 w-[52px] text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300"
+          title="Auto-fit min font-size"
         />
       )}
+      </div>
+      <div className="text-[9px] text-zinc-500">mode:{mode} clamp:{clampLines} min:{minSize} computed:{computedFontSize}px</div>
     </div>
   );
 }
+
 
 export default function Editor() {
   const { catalogId } = useParams();
@@ -208,6 +249,8 @@ export default function Editor() {
 
   const [removingBg, setRemovingBg] = useState(false);
   const [overlayTargetIndex, setOverlayTargetIndex] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [exportDebugHtml, setExportDebugHtml] = useState(false);
 
   const fetchCatalog = useCallback(async () => {
     try {
@@ -229,6 +272,8 @@ export default function Editor() {
   useEffect(() => { fetchCatalog(); }, [fetchCatalog]);
 
   const selectedPage = catalog?.pages?.find(p => p.id === selectedPageId);
+  const overlays = selectedPage?.content?.layers?.overlays || [];
+  const layerGroups = selectedPage?.content?.layer_groups || DEFAULT_LAYER_GROUPS;
   const currentTemplateId = selectedPage?.content?.template_id || 'industrial-product-alert';
   const activeEffects = selectedPage?.content?.effects || effects;
   const previewHTML = selectedPage ? generateTemplateHTML(currentTemplateId, selectedPage.content, activeTheme, activeEffects) : '';
@@ -242,6 +287,51 @@ export default function Editor() {
     setLayers(nextLayers);
     updatePageContent('layers', nextLayers);
   };
+
+  const effectSupportByGuide = {
+    base: { shadow: true, feather: true, opacity: true, blend: true, grain: true },
+    overlay: { shadow: true, feather: true, opacity: true, blend: true, grain: false },
+    shape: { shadow: true, feather: false, opacity: true, blend: false, grain: false },
+    field: { shadow: true, feather: false, opacity: false, blend: false, grain: false },
+    custom: { shadow: true, feather: false, opacity: false, blend: false, grain: false },
+  };
+
+  const activeGuideKind = selectedGuide?.kind || 'base';
+  const activeEffectSupport = effectSupportByGuide[activeGuideKind] || effectSupportByGuide.base;
+
+  const setEffectsForSelection = (patch) => {
+    if (activeGuideKind === 'overlay' && selectedGuide?.id) {
+      const arr = [...overlays];
+      const idx = arr.findIndex((ov, i) => (ov.id || i) === selectedGuide.id);
+      if (idx >= 0) {
+        arr[idx] = { ...arr[idx], effects: { ...(arr[idx].effects || {}), ...patch } };
+        updateOverlays(arr);
+      }
+      return;
+    }
+    if (activeGuideKind === 'shape' && selectedGuide?.id) {
+      const arr = [...(selectedPage?.content?.shape_layers || [])];
+      const idx = arr.findIndex((sh, i) => (sh.id || i) === selectedGuide.id);
+      if (idx >= 0) {
+        arr[idx] = { ...arr[idx], effects: { ...(arr[idx].effects || {}), ...patch } };
+        updatePageContent('shape_layers', arr);
+      }
+      return;
+    }
+    updateEffects({ ...effects, ...patch });
+  };
+
+  const selectedLayerEffects = (() => {
+    if (activeGuideKind === 'overlay' && selectedGuide?.id) {
+      const ov = overlays.find((o, i) => (o.id || i) === selectedGuide.id);
+      return { ...effects, ...(ov?.effects || {}) };
+    }
+    if (activeGuideKind === 'shape' && selectedGuide?.id) {
+      const sh = (selectedPage?.content?.shape_layers || []).find((o, i) => (o.id || i) === selectedGuide.id);
+      return { ...effects, ...(sh?.effects || {}) };
+    }
+    return effects;
+  })();
 
   const updateEffects = (nextEffects) => {
     setEffects(nextEffects);
@@ -295,10 +385,10 @@ export default function Editor() {
       if (target === 'base') {
         updatePageContent('image_data', r.data.image_data);
       } else {
-        const overlays = [...(selectedPage?.content?.overlay_images || [])];
+        const overlays = [...(selectedPage?.content?.layers?.overlays || [])];
         if (typeof target === 'number' && overlays[target]) overlays[target].image_data = r.data.image_data;
         else overlays.push({ id: `ov-${Date.now()}`, image_data: r.data.image_data, x: 50, y: 50, width: 30, height: 30, fit: 'contain', opacity: 100, rotation: 0, zIndex: 6 });
-        updatePageContent('overlay_images', overlays);
+        updateOverlays(overlays);
       }
       toast.success("Yuklendi");
     } catch { toast.error("Yuklenemedi"); }
@@ -308,7 +398,7 @@ export default function Editor() {
   const handleRemoveBg = async (target = 'base', overlayIndex = null) => {
     const targetImage = target === 'base'
       ? selectedPage?.content?.image_data
-      : selectedPage?.content?.overlay_images?.[overlayIndex]?.image_data;
+      : selectedPage?.content?.layers?.overlays?.[overlayIndex]?.image_data;
     if (!targetImage) return;
     setRemovingBg(true);
     try {
@@ -320,10 +410,10 @@ export default function Editor() {
       if (target === 'base') {
         updatePageContent('image_data', r.data.image_data);
       } else {
-        const overlays = [...(selectedPage?.content?.overlay_images || [])];
+        const overlays = [...(selectedPage?.content?.layers?.overlays || [])];
         if (overlays[overlayIndex]) {
           overlays[overlayIndex] = { ...overlays[overlayIndex], image_data: r.data.image_data };
-          updatePageContent('overlay_images', overlays);
+          updateOverlays(overlays);
         }
       }
       toast.success("Arka plan kaldirildi");
@@ -360,14 +450,14 @@ export default function Editor() {
         if (batchPresets['1080x1350']) presets.push({format:'png',width:1080,height:1350,is_mm:false,label:'1080x1350',quality:jpegQuality,optimize:exportQuality==='web'});
         if (batchPresets['1200x628']) presets.push({format:'png',width:1200,height:628,is_mm:false,label:'1200x628',quality:jpegQuality,optimize:exportQuality==='web'});
         if (batchPresets['1920x1080']) presets.push({format:'png',width:1920,height:1080,is_mm:false,label:'1920x1080',quality:jpegQuality,optimize:exportQuality==='web'});
-        const r = await axios.post(`${API}/export/batch`, {html_content:previewHTML,presets,catalog_name:catalog?.product_name||catalog?.name||'export'},{responseType:'blob',timeout:120000});
+        const r = await axios.post(`${API}/export/batch`, {html_content:previewHTML,presets,catalog_name:catalog?.product_name||catalog?.name||'export',debug_html:exportDebugHtml},{responseType:'blob',timeout:120000});
         const url = window.URL.createObjectURL(new Blob([r.data])); const a = document.createElement('a'); a.href=url; a.download=`batch_${new Date().toISOString().slice(0,10)}.zip`; document.body.appendChild(a); a.click(); a.remove();
         toast.success("Toplu export tamamlandi");
       } else {
         const pm = {'a4-portrait':{w:210,h:297,mm:true},'a4-landscape':{w:297,h:210,mm:true,land:true},'1080x1080':{w:1080,h:1080},'1080x1350':{w:1080,h:1350},'1200x628':{w:1200,h:628},'1920x1080':{w:1920,h:1080}};
         const p = pm[exportPreset] || pm['a4-portrait'];
         const ep = exportFormat==='pdf' ? `${API}/export/pdf` : `${API}/export/image`;
-        const r = await axios.post(ep, {html_content:previewHTML,format:exportFormat,width:p.w,height:p.h,is_mm:p.mm||false,quality:jpegQuality,landscape:p.land||false,optimize:exportQuality==='web'},{responseType:'blob',timeout:60000});
+        const r = await axios.post(ep, {html_content:previewHTML,format:exportFormat,width:p.w,height:p.h,is_mm:p.mm||false,quality:jpegQuality,landscape:p.land||false,optimize:exportQuality==='web',debug_html:exportDebugHtml},{responseType:'blob',timeout:60000});
         const ext = exportFormat==='pdf'?'pdf':exportFormat==='jpg'?'jpg':'png';
         const url = window.URL.createObjectURL(new Blob([r.data])); const a = document.createElement('a'); a.href=url; a.download=`${catalog?.product_name||'export'}_${exportPreset}.${ext}`; document.body.appendChild(a); a.click(); a.remove();
         toast.success(`${ext.toUpperCase()} indirildi`);
@@ -378,11 +468,16 @@ export default function Editor() {
   const moveLayer = (id, dir) => { const i = layers.findIndex(l=>l.id===id); const ni = dir==='up'?i-1:i+1; if(ni<0||ni>=layers.length)return; const nl=[...layers]; [nl[i],nl[ni]]=[nl[ni],nl[i]]; updateLayers(nl); };
 
 
+  const updateOverlays = (next) => {
+    updatePageContent('layers', { ...(selectedPage?.content?.layers || {}), overlays: next });
+    updatePageContent('overlay_images', next);
+  };
+
   const updateOverlayAt = (idx, patch) => {
-    const arr = [...(selectedPage?.content?.overlay_images || [])];
+    const arr = [...overlays];
     if (!arr[idx]) return;
     arr[idx] = { ...arr[idx], ...patch };
-    updatePageContent('overlay_images', arr);
+    updateOverlays(arr);
   };
 
   const updateFieldBoxAt = (field, patch) => {
@@ -422,7 +517,7 @@ export default function Editor() {
   if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-[#004aad] border-t-transparent rounded-full"></div></div>;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#09090b] text-zinc-100" data-testid="editor-page">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#09090b] text-zinc-100" data-testid="editor-page" onClick={() => setContextMenu(null)}>
       {/* Header */}
       <header className="bg-[#09090b] border-b border-zinc-800 px-3 py-1.5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -544,7 +639,7 @@ export default function Editor() {
                     />
                   );
                 })}
-                {(selectedPage?.content?.overlay_images || []).map((ov, idx) => {
+                {overlays.map((ov, idx) => {
                   const overlayId = ov.id || idx;
                   const visible = shouldShowGuide('overlay', overlayId);
                   if (!visible) return null;
@@ -554,6 +649,7 @@ export default function Editor() {
                     draggable
                     onDragEnd={(e) => updateOverlayAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
                     onClick={() => setSelectedGuide({ kind: 'overlay', id: overlayId })}
+                    onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'overlay', index: idx }); }}
                     className="absolute border border-[#004aad]/70 bg-black/10 cursor-move"
                     style={{ left: `${ov.x ?? 50}%`, top: `${ov.y ?? 50}%`, width: `${ov.width ?? 30}%`, height: `${ov.height ?? 30}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 20 }}
                     title="Surukle / boyutlandir"
@@ -588,6 +684,17 @@ export default function Editor() {
                   <div className="absolute top-1/2 left-0 right-0 h-px bg-cyan-300/30 pointer-events-none"></div>
                 </>}
                 {showSafeArea && <div className="safe-area-overlay"></div>}
+                {contextMenu && (
+                  <div className="fixed z-50 bg-zinc-900 border border-zinc-700 rounded p-1 space-y-1" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
+                    {contextMenu.type === 'overlay' && (
+                      <>
+                        <button className="block w-full text-left text-xs px-2 py-1 hover:bg-zinc-800 rounded" onClick={() => { updateOverlays(overlays.filter((_, i) => i !== contextMenu.index)); setContextMenu(null); }}>Overlay Sil</button>
+                        <button className="block w-full text-left text-xs px-2 py-1 hover:bg-zinc-800 rounded" onClick={() => { const arr=[...overlays]; if(arr[contextMenu.index]){arr[contextMenu.index].zIndex=(arr[contextMenu.index].zIndex||6)+1; updateOverlays(arr);} setContextMenu(null); }}>One Al</button>
+                        <button className="block w-full text-left text-xs px-2 py-1 hover:bg-zinc-800 rounded" onClick={() => { const arr=[...overlays]; if(arr[contextMenu.index]){arr[contextMenu.index].zIndex=Math.max(0,(arr[contextMenu.index].zIndex||6)-1); updateOverlays(arr);} setContextMenu(null); }}>Arkaya Al</button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -598,13 +705,13 @@ export default function Editor() {
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider shrink-0">Layers</span>
               {layers.map(l => (
                 <div key={l.id} className="flex items-center gap-0.5 px-1.5 py-0.5 border border-zinc-800 rounded text-[10px] shrink-0 bg-zinc-900/50">
-                  <button title="Katmani goster/gizle" onClick={() => updateLayers(layers.map(x=>x.id===l.id?{...x,visible:!x.visible}:x))} className="text-zinc-500 hover:text-zinc-300">
-                    {l.visible ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5 text-zinc-700" />}
+                  <button title="Katmani goster/gizle" onClick={() => updatePageContent('layer_groups', { ...layerGroups, [l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]: { ...(layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id] || {}), visible: !((layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id] || {}).visible !== false) } })} className="text-zinc-500 hover:text-zinc-300">
+                    {(layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]?.visible ?? true) ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5 text-zinc-700" />}
                   </button>
-                  <button title="Katmani kilitle/ac" onClick={() => updateLayers(layers.map(x=>x.id===l.id?{...x,locked:!x.locked}:x))} className="text-zinc-500 hover:text-zinc-300">
-                    {l.locked ? <Lock className="w-2.5 h-2.5 text-red-500/50" /> : <Unlock className="w-2.5 h-2.5" />}
+                  <button title="Katmani kilitle/ac" onClick={() => updatePageContent('layer_groups', { ...layerGroups, [l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]: { ...(layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id] || {}), locked: !((layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id] || {}).locked) } })} className="text-zinc-500 hover:text-zinc-300">
+                    {(layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]?.locked ?? l.locked) ? <Lock className="w-2.5 h-2.5 text-red-500/50" /> : <Unlock className="w-2.5 h-2.5" />}
                   </button>
-                  <span className={l.visible ? 'text-zinc-400' : 'text-zinc-700 line-through'}>{l.name}</span>
+                  <span className={(layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]?.visible ?? true) ? 'text-zinc-400' : 'text-zinc-700 line-through'}>{l.name}</span><Input type='number' value={layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]?.opacity ?? 100} onChange={(e)=>updatePageContent('layer_groups', { ...layerGroups, [l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]: { ...(layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id] || {}), opacity: Number(e.target.value) || 100 } })} className='h-5 w-12 text-[9px] bg-zinc-800 border-zinc-700' title='Opacity %' /><Input type='number' value={layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]?.zIndexOffset ?? 0} onChange={(e)=>updatePageContent('layer_groups', { ...layerGroups, [l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id]: { ...(layerGroups[l.id === 'overlay-images' ? 'overlays' : l.id === 'custom-text' ? 'customText' : l.id] || {}), zIndexOffset: Number(e.target.value) || 0 } })} className='h-5 w-10 text-[9px] bg-zinc-800 border-zinc-700' title='Z offset' />
                   <button title="One getir" onClick={() => moveLayer(l.id,'up')} className="text-zinc-600 hover:text-zinc-400"><ChevronUp className="w-2.5 h-2.5" /></button>
                   <button title="Arkaya gonder" onClick={() => moveLayer(l.id,'down')} className="text-zinc-600 hover:text-zinc-400"><ChevronDown className="w-2.5 h-2.5" /></button>
                 </div>
@@ -696,7 +803,7 @@ export default function Editor() {
 
                     {uiMode === 'advanced' && (
                       <div className="space-y-1 border border-zinc-800 rounded p-1">
-                        <p className="text-[10px] text-zinc-500">Metin Kutu Z-Sira (On/Arka)</p>
+                        <p className="text-[10px] text-zinc-500">Metin Kutu Z-Index (On/Arka) - Font size degildir</p>
                         {Object.entries(selectedPage.content?.field_boxes || {}).map(([field, box]) => (
                           <div key={`fz-${field}`} className="grid grid-cols-[1fr_60px] gap-1 items-center">
                             <span className="text-[10px] text-zinc-400 truncate">{getFieldBoxLabel(field)}</span>
@@ -736,9 +843,12 @@ export default function Editor() {
                               <Trash2 className="w-4 h-4 text-white" />
                             </button>
                           </div>
-                          <input type="color" value={sh.color || '#0f2f44'} onChange={(e)=>updateShapeAt(idx,{color:e.target.value})} className="h-6 w-full bg-zinc-800 border border-zinc-700 rounded" />
-                          <Select value={sh.type || 'rect'} onValueChange={(v)=>updateShapeAt(idx,{type:v})}><SelectTrigger className="h-6 text-[10px] bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger><SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="rect">Rect</SelectItem><SelectItem value="circle">Circle</SelectItem><SelectItem value="line">Line</SelectItem></SelectContent></Select>
-                          <Input type="number" value={sh.zIndex ?? 5} onChange={(e)=>updateShapeAt(idx,{zIndex:Number(e.target.value)||5})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" />
+                          <input type="color" value={sh.fillColor || sh.color || '#0f2f44'} onChange={(e)=>updateShapeAt(idx,{color:e.target.value,fillColor:e.target.value})} className="h-6 w-full bg-zinc-800 border border-zinc-700 rounded" />
+                          <input type="color" value={sh.strokeColor || sh.color || '#0f2f44'} onChange={(e)=>updateShapeAt(idx,{strokeColor:e.target.value})} className="h-6 w-full bg-zinc-800 border border-zinc-700 rounded" title="Stroke color" />
+                          <Select value={sh.type || 'rect'} onValueChange={(v)=>updateShapeAt(idx,{type:v})}><SelectTrigger className="h-6 text-[10px] bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger><SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="rect">Rect</SelectItem><SelectItem value="circle">Circle/Ellipse</SelectItem><SelectItem value="line">Line</SelectItem></SelectContent></Select>
+                          {sh.type === 'circle' && <Select value={sh.circleMode || 'ellipse'} onValueChange={(v)=>updateShapeAt(idx,{circleMode:v})}><SelectTrigger className="h-6 text-[10px] bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger><SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="ellipse">Ellipse</SelectItem><SelectItem value="perfect">Perfect circle</SelectItem></SelectContent></Select>}
+                          <Input type="number" value={sh.strokeWidth ?? 0} onChange={(e)=>updateShapeAt(idx,{strokeWidth:Number(e.target.value)||0})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Stroke px" />
+                          <Input type="number" value={sh.zIndex ?? 5} onChange={(e)=>updateShapeAt(idx,{zIndex:Number(e.target.value)||5})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Z-index" />
                           <button className="h-6 text-[10px] border border-zinc-700 rounded text-zinc-300" onClick={()=>updateShapeAt(idx,{locked:!sh.locked})}>{sh.locked ? 'Unlock':'Lock'}</button>
                           <Input type="number" value={sh.rotation ?? 0} onChange={(e)=>updateShapeAt(idx,{rotation:Number(e.target.value)||0})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Rot" />
                           {(sh.type === 'line') && <Input type="number" value={sh.thickness ?? 3} onChange={(e)=>updateShapeAt(idx,{thickness:Number(e.target.value)||3})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="px" />}
@@ -782,7 +892,7 @@ export default function Editor() {
                           <Plus className="w-3 h-3 mr-1" />Yeni Overlay
                         </Button>
                       </div>
-                      {!(selectedPage.content?.overlay_images || []).length && (
+                      {!overlays.length && (
                         <p className="text-[10px] text-zinc-500">Birden fazla gorsel ekleyebilir, ust uste konumlandirabilirsiniz.</p>
                       )}
                     </div>
@@ -829,19 +939,21 @@ export default function Editor() {
                               <Plus className="w-3 h-3 mr-1" />Yeni
                             </Button>
                           </div>
-                          {(selectedPage.content?.overlay_images || []).map((ov, idx) => (
+                          {overlays.map((ov, idx) => (
                             <div key={ov.id || idx} className="bg-zinc-900/50 p-1.5 rounded border border-zinc-800 space-y-1">
                               <div className="flex items-center gap-1">
                                 <button className="p-1 rounded bg-zinc-800" onClick={() => { setOverlayTargetIndex(idx); overlayInputRef.current?.click(); }}><Upload className="w-3 h-3 text-zinc-300" /></button>
-                                <button className="h-7 w-7 flex items-center justify-center rounded bg-red-500/60 hover:bg-red-500/80" onClick={() => updatePageContent('overlay_images', (selectedPage.content?.overlay_images || []).filter((_,i)=>i!==idx))}><Trash2 className="w-4 h-4 text-white" /></button>
+                                <button className="h-7 w-7 flex items-center justify-center rounded bg-red-500/60 hover:bg-red-500/80" onClick={() => updateOverlays(overlays.filter((_,i)=>i!==idx))}><Trash2 className="w-4 h-4 text-white" /></button>
                                 <button className="p-1 rounded bg-zinc-700" onClick={() => handleRemoveBg('overlay', idx)} title="Bu katmanda arka plan sil"><Scissors className="w-3 h-3 text-white" /></button>
                                 <span className="text-[10px] text-zinc-400">Katman {idx+1}</span>
                               </div>
                               <div className="grid grid-cols-2 gap-1">
-                                <Input value={ov.x ?? 50} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,x:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="X%" />
-                                <Input value={ov.y ?? 50} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,y:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Y%" />
-                                <Input value={ov.width ?? 30} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,width:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="W%" />
-                                <Input value={ov.height ?? 30} type="number" onChange={(e)=>{const arr=[...(selectedPage.content?.overlay_images||[])];arr[idx]={...ov,height:Number(e.target.value)};updatePageContent('overlay_images',arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="H%" />
+                                <Input value={ov.x ?? 50} type="number" onChange={(e)=>{const arr=[...overlays];arr[idx]={...ov,x:Number(e.target.value)};updateOverlays(arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="X%" />
+                                <Input value={ov.y ?? 50} type="number" onChange={(e)=>{const arr=[...overlays];arr[idx]={...ov,y:Number(e.target.value)};updateOverlays(arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Y%" />
+                                <Input value={ov.width ?? 30} type="number" onChange={(e)=>{const arr=[...overlays];arr[idx]={...ov,width:Number(e.target.value)};updateOverlays(arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="W%" />
+                                <Input value={ov.height ?? 30} type="number" onChange={(e)=>{const arr=[...overlays];arr[idx]={...ov,height:Number(e.target.value)};updateOverlays(arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="H%" />
+                                <Input value={ov.zIndex ?? 6} type="number" onChange={(e)=>{const arr=[...overlays];arr[idx]={...ov,zIndex:Number(e.target.value)||6};updateOverlays(arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Z-Index" />
+                                <Input value={ov.effects?.opacity ?? ov.opacity ?? 100} type="number" onChange={(e)=>{const arr=[...overlays];arr[idx]={...ov,effects:{...(ov.effects||{}),opacity:Number(e.target.value)||100}};updateOverlays(arr);}} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Opacity%" />
                               </div>
                             </div>
                           ))}
@@ -861,22 +973,24 @@ export default function Editor() {
                   </CollapsibleTrigger>
                   <CollapsibleContent className="px-1 pt-2 space-y-3">
                     <div className="bg-zinc-800/30 rounded p-1.5 text-[10px] text-zinc-500">
-                      <span className="text-[#004aad]">Hedef:</span> Secili layer'a uygulanir (Grain = global)
+                      <span className="text-[#004aad]">Hedef:</span> {activeGuideKind === 'base' ? 'Ana gorsel' : `Secili ${activeGuideKind} katmani`}
                     </div>
-                    <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Feathering</span><span className="text-[10px] text-zinc-600">{effects.feather}px</span></div>
-                      <Slider value={[effects.feather]} onValueChange={([v]) => updateEffects({...effects,feather:v})} max={20} className="mt-1" /></div>
-                    <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Shadow</span><span className="text-[10px] text-zinc-600">{effects.shadow}%</span></div>
-                      <Slider value={[effects.shadow]} onValueChange={([v]) => updateEffects({...effects,shadow:v})} max={100} step={5} className="mt-1" /></div>
+                    {activeEffectSupport.feather && <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Feathering</span><span className="text-[10px] text-zinc-600">{selectedLayerEffects.feather || 0}px</span></div>
+                      <Slider value={[selectedLayerEffects.feather || 0]} onValueChange={([v]) => setEffectsForSelection({feather:v})} max={20} className="mt-1" /></div>}
+                    <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Shadow</span><span className="text-[10px] text-zinc-600">{selectedLayerEffects.shadow || 0}%</span></div>
+                      <Slider value={[selectedLayerEffects.shadow || 0]} onValueChange={([v]) => setEffectsForSelection({shadow:v})} max={100} step={5} className="mt-1" disabled={!activeEffectSupport.shadow} /></div>
+                    <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Opacity</span><span className="text-[10px] text-zinc-600">{selectedLayerEffects.opacity ?? 100}%</span></div>
+                      <Slider value={[selectedLayerEffects.opacity ?? 100]} onValueChange={([v]) => setEffectsForSelection({opacity:v})} max={100} step={1} className="mt-1" disabled={!activeEffectSupport.opacity} /></div>
                     <div className="flex items-center justify-between"><span className="text-[10px] text-zinc-500">Grain</span>
                       <Switch checked={effects.grain_enabled} onCheckedChange={(v) => updateEffects({...effects,grain_enabled:v})} className="scale-[0.6] data-[state=checked]:bg-[#004aad]" /></div>
                     {effects.grain_enabled && <div><div className="flex justify-between"><span className="text-[10px] text-zinc-500">Yogunluk</span><span className="text-[10px] text-zinc-600">{effects.grain_intensity}%</span></div>
                       <Slider value={[effects.grain_intensity]} onValueChange={([v]) => updateEffects({...effects,grain_intensity:v})} max={50} className="mt-1" /></div>}
-                    <div><span className="text-[10px] text-zinc-500">Blend</span>
-                      <Select value={effects.blend} onValueChange={(v) => updateEffects({...effects,blend:v})}>
+                    {activeEffectSupport.blend && <div><span className="text-[10px] text-zinc-500">Blend</span>
+                      <Select value={selectedLayerEffects.blend || 'normal'} onValueChange={(v) => setEffectsForSelection({blend:v})}>
                         <SelectTrigger className="h-7 text-[10px] bg-zinc-800 border-zinc-700 text-zinc-300 mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="normal">Normal</SelectItem><SelectItem value="multiply">Multiply</SelectItem><SelectItem value="screen">Screen</SelectItem><SelectItem value="overlay">Overlay</SelectItem></SelectContent>
                       </Select>
-                    </div>
+                    </div>}
                   </CollapsibleContent>
                 </Collapsible>
                 )}
@@ -933,6 +1047,10 @@ export default function Editor() {
                 </label>
               ))}</div>
             )}
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] text-zinc-400">Debug HTML (export_debug.html)</Label>
+              <Switch checked={exportDebugHtml} onCheckedChange={setExportDebugHtml} className="data-[state=checked]:bg-[#004aad]" />
+            </div>
             <div><Label className="text-[10px] text-zinc-400">Kalite</Label>
               <Select value={exportQuality} onValueChange={setExportQuality}><SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="high">Yuksek (Baski)</SelectItem><SelectItem value="web">Web Optimize</SelectItem></SelectContent></Select></div>

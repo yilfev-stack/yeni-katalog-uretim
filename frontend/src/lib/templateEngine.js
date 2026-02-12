@@ -32,27 +32,52 @@ function esc(str) { if (!str) return ''; return String(str).replace(/&/g,'&amp;'
 function hasText(v) { return typeof v === 'string' && v.trim().length > 0; }
 
 // Get style string from content data for a field
+function resolveOverflowConfig(content = {}, field, defaults = {}) {
+  const fromMap = content?.field_overflow?.[field] || {};
+  return {
+    mode: fromMap.mode || content?.[`${field}_overflow`] || defaults.overflow || 'wrap',
+    clampLines: Number(fromMap.clampLines ?? content?.[`${field}_clamp_lines`] ?? defaults.clampLines ?? 3),
+    minSize: Number(fromMap.minSize ?? content?.[`${field}_min_size`] ?? defaults.minSize ?? 10),
+  };
+}
+
 function fieldStyle(content, field, defaults = {}) {
   const c = content || {};
-  const baseSize = c[`${field}_size`] || defaults.size || 14;
-  const minSize = c[`${field}_min_size`] || defaults.minSize || 10;
+  const fieldStyleCfg = c?.field_style?.[field] || {};
+  const baseSize = Number(fieldStyleCfg.fontSize ?? c[`${field}_size`] ?? defaults.size ?? 14);
   const font = c[`${field}_font`] || defaults.font || 'inherit';
   const bold = c[`${field}_bold`] || defaults.bold || false;
   const italic = c[`${field}_italic`] || defaults.italic || false;
   const color = c[`${field}_color`] || defaults.color || '';
-  const overflow = c[`${field}_overflow`] || defaults.overflow || 'wrap';
-  const clampLines = c[`${field}_clamp_lines`] || defaults.clampLines || 3;
+  const overflowCfg = resolveOverflowConfig(c, field, defaults);
 
   let text = c[field];
   if (Array.isArray(text)) text = text.join(' ');
   if (typeof text !== 'string') text = '';
 
   let size = baseSize;
-  if (overflow === 'autofit') {
-    const threshold = defaults.autofitThreshold || 90;
-    if (text.length > threshold) {
-      size = Math.max(minSize, Math.floor(baseSize - (text.length - threshold) / 18));
+  if (overflowCfg.mode === 'autofit') {
+    const box = c?.field_boxes?.[field] || {};
+    const widthFactor = Math.max(8, Number(box.width ?? 28));
+    const heightFactor = Math.max(4, Number(box.height ?? 10));
+    const capacity = Math.max(20, Math.floor((widthFactor * heightFactor) * 0.38));
+    let low = overflowCfg.minSize;
+    let high = baseSize;
+    let best = low;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const approxPerLine = Math.max(6, Math.floor(widthFactor * (13 / Math.max(8, mid))));
+      const lines = Math.ceil(text.length / approxPerLine);
+      const maxLines = Math.max(1, Math.floor((heightFactor * 8) / Math.max(8, mid)));
+      const fits = text.length <= capacity || lines <= maxLines;
+      if (fits) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
     }
+    size = Math.max(overflowCfg.minSize, best);
   }
 
   let s = `font-size:${size}px;`;
@@ -61,10 +86,10 @@ function fieldStyle(content, field, defaults = {}) {
   if (italic) s += 'font-style:italic;';
   if (color) s += `color:${color};`;
 
-  if (overflow === 'ellipsis') {
+  if (overflowCfg.mode === 'ellipsis') {
     s += 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-  } else if (overflow === 'clamp') {
-    s += `display:-webkit-box;-webkit-line-clamp:${clampLines};-webkit-box-orient:vertical;overflow:hidden;`;
+  } else if (overflowCfg.mode === 'clamp') {
+    s += `display:-webkit-box;-webkit-line-clamp:${overflowCfg.clampLines};-webkit-box-orient:vertical;overflow:hidden;`;
   } else {
     s += 'overflow:hidden;white-space:normal;overflow-wrap:anywhere;word-break:break-word;';
   }
@@ -72,6 +97,24 @@ function fieldStyle(content, field, defaults = {}) {
   s += fieldBoxStyle(c, field);
   return s;
 }
+
+function layerEffectsStyle(layerEffects = {}, supported = {}) {
+  const styles = [];
+  const opacity = Number(layerEffects.opacity ?? 100) / 100;
+  if (supported.opacity) styles.push(`opacity:${Math.max(0, Math.min(1, opacity))};`);
+  if (supported.shadow && Number(layerEffects.shadow || 0) > 0) {
+    const alpha = Number(layerEffects.shadow || 0) / 100;
+    styles.push(`box-shadow:0 14px 28px rgba(0,0,0,${Math.min(0.95, alpha)});`);
+  }
+  if (supported.feather && Number(layerEffects.feather || 0) > 0) {
+    styles.push(`filter:blur(${Number(layerEffects.feather || 0)}px);`);
+  }
+  if (supported.blend && layerEffects.blend && layerEffects.blend !== 'normal') {
+    styles.push(`mix-blend-mode:${layerEffects.blend};`);
+  }
+  return styles.join('');
+}
+
 
 function grainOverlay(enabled, intensity = 20) {
   if (!enabled) return '';
@@ -100,6 +143,7 @@ function pickPageBackground(custom, fallback) {
 }
 
 function getLayerMap(rawLayers = []) {
+  if (!Array.isArray(rawLayers)) return {};
   return rawLayers.reduce((acc, layer) => {
     if (layer?.id) acc[layer.id] = layer;
     return acc;
@@ -112,6 +156,33 @@ function isLayerVisible(layerMap, id) {
   return layer.visible !== false;
 }
 
+
+
+function getLayerGroups(data = {}) {
+  return data?.layer_groups || {};
+}
+
+function groupConfig(data = {}, id) {
+  return getLayerGroups(data)?.[id] || {};
+}
+
+function isGroupVisible(data = {}, id, fallback = true) {
+  const cfg = groupConfig(data, id);
+  if (cfg.visible === undefined) return fallback;
+  return cfg.visible !== false;
+}
+
+function groupStyle(data = {}, id) {
+  const cfg = groupConfig(data, id);
+  const opacity = Number(cfg.opacity ?? 100) / 100;
+  const zOffset = Number(cfg.zIndexOffset ?? 0);
+  return { opacity: Math.max(0, Math.min(1, opacity)), zOffset };
+}
+
+function withGroupZ(baseZ, data, id) {
+  const { zOffset } = groupStyle(data, id);
+  return Number(baseZ) + zOffset;
+}
 
 function fieldBoxStyle(content = {}, field) {
   const box = content?.field_boxes?.[field];
@@ -126,7 +197,7 @@ function fieldBoxStyle(content = {}, field) {
 
 function renderShapeLayers(data = {}, layerMap = {}) {
   const shapes = Array.isArray(data.shape_layers) ? data.shape_layers : [];
-  if (!isLayerVisible(layerMap, 'shapes')) return '';
+  if (!isLayerVisible(layerMap, 'shapes') || !isGroupVisible(data, 'shapes', true)) return '';
   return shapes
     .map((sh) => {
       const type = sh?.type || 'rect';
@@ -134,48 +205,59 @@ function renderShapeLayers(data = {}, layerMap = {}) {
       const y = Number(sh?.y ?? 50);
       const w = Number(sh?.width ?? 20);
       const h = Number(sh?.height ?? 10);
-      const opacity = Number(sh?.opacity ?? 100) / 100;
+      const groupFx = groupStyle(data, 'shapes');
+      const opacity = (Number(sh?.opacity ?? 100) / 100) * groupFx.opacity;
       const radius = Number(sh?.borderRadius ?? 0);
       const color = sh?.color || '#0f172a';
-      const z = Number(sh?.zIndex ?? 5);
+      const fill = sh?.fillColor || color;
+      const stroke = sh?.strokeColor || color;
+      const strokeWidth = Number(sh?.strokeWidth ?? 0);
+      const z = withGroupZ(Number(sh?.zIndex ?? 5), data, 'shapes');
       const rotate = Number(sh?.rotation ?? 0);
-      const shadow = sh?.shadow ? 'box-shadow:0 10px 30px rgba(0,0,0,0.25);' : '';
-      const common = `position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;transform:translate(-50%,-50%) rotate(${rotate}deg);opacity:${opacity};z-index:${z};${shadow}`;
+      const fx = layerEffectsStyle(sh?.effects || {}, { opacity: true, shadow: true });
+      const common = `position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;transform:translate(-50%,-50%) rotate(${rotate}deg);opacity:${opacity};z-index:${z};${fx}`;
 
       if (type === 'circle') {
-        return `<div style="${common}background:${color};border-radius:9999px;"></div>`;
+        const circleMode = sh?.circleMode || 'ellipse';
+        return `<div style="${common}background:${fill};border:${strokeWidth}px solid ${stroke};border-radius:${circleMode === 'perfect' ? '50%' : '9999px'};"></div>`;
       }
       if (type === 'line') {
-        const thickness = Number(sh?.thickness ?? 3);
-        return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${thickness}px;transform:translate(-50%,-50%) rotate(${rotate}deg);background:${color};opacity:${opacity};z-index:${z};${shadow}"></div>`;
+        const thickness = Number(sh?.thickness ?? Math.max(1, strokeWidth || 3));
+        return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${thickness}px;transform:translate(-50%,-50%) rotate(${rotate}deg);background:${stroke};opacity:${opacity};z-index:${z};${fx}"></div>`;
       }
-      return `<div style="${common}background:${color};border-radius:${radius}px;"></div>`;
+      return `<div style="${common}background:${fill};border:${strokeWidth}px solid ${stroke};border-radius:${radius}px;"></div>`;
     })
     .join('');
 }
 
+
 function renderOverlayImages(data = {}, layerMap = {}) {
-  const overlays = Array.isArray(data.overlay_images) ? data.overlay_images : [];
-  if (!isLayerVisible(layerMap, 'overlay-images')) return '';
+  const overlays = Array.isArray(data?.layers?.overlays) ? data.layers.overlays : [];
+  if (!isLayerVisible(layerMap, 'overlay-images') || !isGroupVisible(data, 'overlays', true)) return '';
+  const seen = new Set();
   return overlays
-    .filter((o) => o && o.image_data)
+    .filter((o) => o && o.image_data && !seen.has(o.id) && (seen.add(o.id) || true))
     .map((o) => {
       const x = Number(o.x ?? 50);
       const y = Number(o.y ?? 50);
       const w = Number(o.width ?? 30);
       const h = Number(o.height ?? 30);
       const fit = o.fit || 'contain';
-      const z = Number(o.zIndex ?? 6);
+      const z = withGroupZ(Number(o.zIndex ?? 6), data, 'overlays');
       const rot = Number(o.rotation ?? 0);
-      const opacity = Number(o.opacity ?? 100) / 100;
-      return `<img src="${o.image_data}" alt="overlay" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:${fit};z-index:${z};transform:rotate(${rot}deg);opacity:${opacity};pointer-events:none;" />`;
+      const effects = o.effects || {};
+      const groupFx = groupStyle(data, 'overlays');
+      const opacity = (Number(effects.opacity ?? o.opacity ?? 100) * groupFx.opacity);
+      const effectCss = layerEffectsStyle({ ...effects, opacity }, { opacity: true, shadow: true, feather: true, blend: true });
+      return `<img src="${o.image_data}" alt="overlay" style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;object-fit:${fit};z-index:${z};transform:translate(-50%,-50%) rotate(${rot}deg);pointer-events:none;${effectCss}" />`;
     })
     .join('');
 }
 
+
 function renderCustomTextBoxes(data = {}, layerMap = {}) {
   const boxes = Array.isArray(data.custom_text_boxes) ? data.custom_text_boxes : [];
-  if (!isLayerVisible(layerMap, 'custom-text')) return '';
+  if (!isLayerVisible(layerMap, 'custom-text') || !isGroupVisible(data, 'customText', true)) return '';
   return boxes
     .filter((b) => b && b.text)
     .map((b) => {
@@ -187,7 +269,7 @@ function renderCustomTextBoxes(data = {}, layerMap = {}) {
       const color = b.color || '#111827';
       const weight = b.bold ? '700' : '400';
       const align = b.align || 'left';
-      return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;overflow:hidden;z-index:${Number(b.zIndex ?? 7)};"><div style="font-size:${size}px;color:${color};font-weight:${weight};line-height:1.35;text-align:${align};white-space:pre-wrap;">${esc(b.text)}</div></div>`;
+      return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;overflow:hidden;z-index:${withGroupZ(Number(b.zIndex ?? 7), data, 'customText')};"><div style="font-size:${size}px;color:${color};font-weight:${weight};line-height:1.35;text-align:${align};white-space:pre-wrap;">${esc(b.text)}</div></div>`;
     })
     .join('');
 }
@@ -202,7 +284,7 @@ function industrialProductAlert(data, theme, effects = {}) {
     ${headerBar(theme)}
     <div style="display:flex;height:calc(100% - 90px);">
       <div style="width:42%;position:relative;overflow:hidden;">
-        ${isLayerVisible(layerMap,'image') && d.image_data ? `<img src="${d.image_data}" style="width:100%;height:100%;object-fit:${d.image_fit||'cover'};" />` : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1e3a5f,#0f172a);"></div>`}
+        ${isLayerVisible(layerMap,'image') && isGroupVisible(d,'image',true) && d.image_data ? `<img src="${d.image_data}" style="width:100%;height:100%;object-fit:${d.image_fit||'cover'};${layerEffectsStyle({ ...effects, opacity:(effects.opacity ?? 100) * groupStyle(d,'image').opacity },{opacity:true,shadow:true,feather:true,blend:true})}" />` : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1e3a5f,#0f172a);"></div>`}
       </div>
       <div style="width:58%;padding:28px 24px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;background:${theme.primary_color}08;">
         ${hasText(d.label_alert) ? `<div style="background:${theme.accent_color||'#f59e0b'};color:#fff;display:inline-block;padding:5px 14px;border-radius:3px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;letter-spacing:2px;margin-bottom:16px;width:fit-content;${fieldStyle(c,'label_alert',{color:'#ffffff',size:11})}">${esc(d.label_alert)}</div>` : ''}
@@ -231,7 +313,7 @@ function eventPoster(data, theme, effects = {}) {
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:linear-gradient(160deg,${theme.primary_color} 0%,${theme.secondary_color} 60%,#0c1425 100%);`)}">
     <div style="padding:40px;display:flex;flex-direction:column;align-items:center;text-align:center;height:100%;overflow:hidden;">
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:650px;">
-        ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="max-width:180px;max-height:160px;object-fit:contain;margin-bottom:20px;border-radius:10px;" />`:''}
+        ${isLayerVisible(layerMap,'image') && isGroupVisible(d,'image',true) && d.image_data?`<img src="${d.image_data}" style="max-width:180px;max-height:160px;object-fit:contain;margin-bottom:20px;border-radius:10px;" />`:''}
         <h1 style="font-family:'Montserrat',sans-serif;font-size:clamp(22px,4vw,36px);font-weight:900;color:#fff;line-height:1.15;margin-bottom:12px;${fieldStyle(c,'title',{color:'#ffffff'})}">${esc(d.title||'ETKINLIK')}</h1>
         ${d.subtitle?`<h2 style="font-size:clamp(13px,2vw,16px);color:rgba(255,255,255,0.9);margin-bottom:20px;font-style:italic;${fieldStyle(c,'subtitle',{color:'rgba(255,255,255,0.9)'})}">${esc(d.subtitle)}</h2>`:''}
         ${d.description?`<p style="font-size:clamp(11px,1.5vw,14px);color:rgba(255,255,255,0.85);line-height:1.7;margin-bottom:20px;${fieldStyle(c,'description',{color:'rgba(255,255,255,0.85)'})}">${esc(d.description)}</p>`:''}
@@ -270,7 +352,7 @@ function minimalPremium(data, theme, effects = {}) {
           ${d.key_benefits?`<div style="margin-top:20px;padding:14px;background:#f8fafc;border-radius:6px;"><p style="font-size:12px;color:#64748b;line-height:1.6;${fieldStyle(c,'benefits',{color:'#64748b',size:12})}">${esc(d.key_benefits)}</p></div>`:''}
         </div>
         <div style="width:240px;flex-shrink:0;">
-          ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="width:100%;border-radius:10px;object-fit:${d.image_fit||'cover'};box-shadow:0 16px 48px rgba(0,0,0,0.1);" />`:`<div style="width:100%;aspect-ratio:3/4;background:#f1f5f9;border-radius:10px;display:flex;align-items:center;justify-content:center;"><span style="color:#94a3b8;font-size:12px;">Gorsel</span></div>`}
+          ${isLayerVisible(layerMap,'image') && isGroupVisible(d,'image',true) && d.image_data?`<img src="${d.image_data}" style="width:100%;border-radius:10px;object-fit:${d.image_fit||'cover'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}box-shadow:0 16px 48px rgba(0,0,0,0.1);" />`:`<div style="width:100%;aspect-ratio:3/4;background:#f1f5f9;border-radius:10px;display:flex;align-items:center;justify-content:center;"><span style="color:#94a3b8;font-size:12px;">Gorsel</span></div>`}
         </div>
       </div>
     </div>
@@ -296,7 +378,7 @@ function techDataSheet(data, theme, effects = {}) {
           ${d.subtitle?`<p style="font-size:12px;color:#64748b;margin-bottom:8px;${fieldStyle(c,'subtitle')}">${esc(d.subtitle)}</p>`:''}
           ${d.description?`<p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'description',{color:'#475569',size:11})}">${esc(d.description)}</p>`:''}
         </div>
-        ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="width:160px;flex-shrink:0;"><img src="${d.image_data}" style="width:100%;border-radius:6px;object-fit:${d.image_fit||'contain'};border:1px solid #e2e8f0;" /></div>`:''}
+        ${isLayerVisible(layerMap,'image') && isGroupVisible(d,'image',true) && d.image_data?`<div style="width:160px;flex-shrink:0;"><img src="${d.image_data}" style="width:100%;border-radius:6px;object-fit:${d.image_fit||'contain'};${layerEffectsStyle({ ...effects, opacity:(effects.opacity ?? 100) * groupStyle(d,'image').opacity },{opacity:true,shadow:true,feather:true,blend:true})}border:1px solid #e2e8f0;" /></div>`:''}
       </div>
       ${d.bullet_points?.length?`<div style="margin-bottom:12px;">${hasText(d.label_features) ? `<div style="background:${theme.primary_color};color:#fff;padding:6px 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;${fieldStyle(c,'label_features',{color:'#ffffff',size:10})}">${esc(d.label_features)}</div>` : ''}
         <table style="width:100%;border-collapse:collapse;">${d.bullet_points.slice(0,10).map((p,i)=>{const pts=p.split(':');return `<tr style="background:${i%2===0?'#f8fafc':'#fff'};"><td style="padding:6px 12px;font-size:11px;color:#334155;border:1px solid #e2e8f0;font-weight:600;width:40%;${fieldStyle(c,'bullets',{size:11})}">${esc(pts[0]||p)}</td><td style="padding:6px 12px;font-size:11px;color:#475569;border:1px solid #e2e8f0;">${esc(pts[1]||'')}</td></tr>`;}).join('')}</table></div>`:''}
@@ -318,7 +400,7 @@ function photoDominant(data, theme, effects = {}) {
   const layerMap = getLayerMap(d.layers);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:${theme.background_color || "#ffffff"};`)}">
-    ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${d.image_fit||'cover'};" />`:`<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1e293b,#0f172a);"></div>`}
+    ${isLayerVisible(layerMap,'image') && isGroupVisible(d,'image',true) && d.image_data?`<img src="${d.image_data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${d.image_fit||'cover'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}" />`:`<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1e293b,#0f172a);"></div>`}
     <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.5) 50%,rgba(0,0,0,0.85) 100%);"></div>
     <div style="position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:50px 40px;overflow:hidden;">
       <div style="width:40px;height:3px;background:${theme.accent_color||'#f59e0b'};margin-bottom:16px;"></div>
@@ -358,7 +440,7 @@ function geometricCorporate(data, theme, effects = {}) {
           ${d.applications?`<div style="padding:12px;background:${theme.primary_color}08;border-radius:6px;margin-bottom:10px;"><p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'applications')}">${esc(d.applications)}</p></div>`:''}
           ${d.key_benefits?`<div style="padding:12px;background:${theme.accent_color||'#f59e0b'}12;border-left:3px solid ${theme.accent_color||'#f59e0b'};border-radius:0 6px 6px 0;"><p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits')}">${esc(d.key_benefits)}</p></div>`:''}
         </div>
-        ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="width:240px;flex-shrink:0;padding:24px 24px 24px 0;"><img src="${d.image_data}" style="width:100%;border-radius:6px;object-fit:${d.image_fit||'cover'};" /></div>`:''}
+        ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="width:240px;flex-shrink:0;padding:24px 24px 24px 0;"><img src="${d.image_data}" style="width:100%;border-radius:6px;object-fit:${d.image_fit||'cover'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}" /></div>`:''}
       </div>
     </div>
     ${isLayerVisible(layerMap,'footer') ? footerBar(theme) : ''}
@@ -391,7 +473,7 @@ function darkTech(data, theme, effects = {}) {
         ${d.applications?`<p style="font-size:11px;color:#64748b;margin-bottom:10px;${fieldStyle(c,'applications')}">${esc(d.applications)}</p>`:''}
         ${d.key_benefits?`<p style="font-size:11px;color:${neon}80;margin-bottom:12px;${fieldStyle(c,'benefits')}">${esc(d.key_benefits)}</p>`:''}
         ${d.cta_text?`<div style="border:1px solid ${neon};color:${neon};padding:8px 20px;display:inline-block;font-family:'Montserrat',sans-serif;font-weight:600;font-size:12px;width:fit-content;border-radius:3px;">${esc(d.cta_text)}</div>`:''}
-        ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="margin-top:14px;"><img src="${d.image_data}" style="max-width:320px;max-height:180px;object-fit:${d.image_fit||'contain'};border-radius:6px;box-shadow:0 0 30px ${neon}20;" /></div>`:''}
+        ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="margin-top:14px;"><img src="${d.image_data}" style="max-width:320px;max-height:180px;object-fit:${d.image_fit||'contain'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}border-radius:6px;box-shadow:0 0 30px ${neon}20;" /></div>`:''}
       </div>
       <div style="border-top:1px solid #1e293b;padding-top:12px;display:flex;justify-content:space-between;">
         <span style="font-size:8px;color:#475569;">${DEMART.website}</span>
@@ -419,7 +501,7 @@ function cleanIndustrialGrid(data, theme, effects = {}) {
         <h1 style="font-family:'Montserrat',sans-serif;font-size:clamp(16px,3vw,26px);font-weight:800;color:${theme.primary_color};${fieldStyle(c,'title',{color:theme.primary_color})}">${esc(d.title||'FAYDALARI')}</h1>
         ${d.subtitle?`<p style="font-size:13px;color:#64748b;margin-top:6px;${fieldStyle(c,'subtitle')}">${esc(d.subtitle)}</p>`:''}
       </div>
-      ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="text-align:center;margin-bottom:16px;"><img src="${d.image_data}" style="max-height:160px;object-fit:${d.image_fit||'contain'};border-radius:10px;" /></div>`:''}
+      ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="text-align:center;margin-bottom:16px;"><img src="${d.image_data}" style="max-height:160px;object-fit:${d.image_fit||'contain'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}border-radius:10px;" /></div>`:''}
       ${d.bullet_points?.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">${d.bullet_points.slice(0,8).map((p,i)=>`<div style="background:#f8fafc;padding:14px;border-radius:8px;display:flex;gap:10px;align-items:flex-start;border:1px solid #e2e8f0;"><div style="width:30px;height:30px;background:${theme.primary_color}15;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="color:${theme.primary_color};font-size:16px;">${icons[i%icons.length]}</span></div><span style="font-size:11px;color:#334155;line-height:1.4;${fieldStyle(c,'bullets',{size:11})}">${esc(p)}</span></div>`).join('')}</div>`:''}
       ${d.description?`<p style="font-size:11px;color:#475569;line-height:1.6;text-align:center;max-width:550px;margin:0 auto;${fieldStyle(c,'description',{size:11})}">${esc(d.description)}</p>`:''}
     </div>
@@ -442,7 +524,7 @@ function greetingCard(data, theme, effects = {}) {
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color || bg, `background:${bg};`)}">
     <div style="position:absolute;top:36px;left:36px;right:36px;bottom:36px;border:2px solid ${txt}25;border-radius:16px;"></div>
     <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 50px;text-align:center;overflow:hidden;">
-      ${isLayerVisible(layerMap,'image') && d.image_data?`<img src="${d.image_data}" style="max-width:180px;max-height:180px;object-fit:contain;margin-bottom:24px;border-radius:10px;" />`:''}
+      ${isLayerVisible(layerMap,'image') && isGroupVisible(d,'image',true) && d.image_data?`<img src="${d.image_data}" style="max-width:180px;max-height:180px;object-fit:contain;margin-bottom:24px;border-radius:10px;" />`:''}
       <h1 style="font-family:'Montserrat',sans-serif;font-size:clamp(20px,4vw,34px);font-weight:700;color:${txt};margin-bottom:20px;line-height:1.3;">${esc(d.title||'Tebrikler!')}</h1>
       <div style="width:50px;height:2px;background:${txt};opacity:0.3;margin-bottom:20px;"></div>
       <p style="font-size:14px;color:${txt};opacity:0.9;line-height:1.8;max-width:420px;margin-bottom:30px;white-space:pre-line;">${esc(d.description||d.message||'Mesajiniz')}</p>
