@@ -156,6 +156,9 @@ function isLayerVisible(layerMap, id) {
   return layer.visible !== false;
 }
 
+function getContentLayerMap(content = {}) {
+  return getLayerMap(content?.layer_visibility || content?.layers);
+}
 
 
 function getLayerGroups(data = {}) {
@@ -218,12 +221,15 @@ function renderShapeLayers(data = {}, layerMap = {}) {
       const common = `position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;transform:translate(-50%,-50%) rotate(${rotate}deg);opacity:${opacity};z-index:${z};${fx}`;
 
       if (type === 'circle') {
-        const circleMode = sh?.circleMode || 'ellipse';
-        return `<div style="${common}background:${fill};border:${strokeWidth}px solid ${stroke};border-radius:${circleMode === 'perfect' ? '50%' : '9999px'};"></div>`;
+        const circleMode = sh?.circleMode || 'perfect';
+        const size = Math.min(w, h);
+        const cw = circleMode === 'perfect' ? size : w;
+        const ch = circleMode === 'perfect' ? size : h;
+        return `<div style="position:absolute;left:${x}%;top:${y}%;width:${cw}%;height:${ch}%;transform:translate(-50%,-50%) rotate(${rotate}deg);opacity:${opacity};z-index:${z};${fx}background:${fill};border:${strokeWidth}px solid ${stroke};border-radius:9999px;"></div>`;
       }
       if (type === 'line') {
         const thickness = Number(sh?.thickness ?? Math.max(1, strokeWidth || 3));
-        return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${thickness}px;transform:translate(-50%,-50%) rotate(${rotate}deg);background:${stroke};opacity:${opacity};z-index:${z};${fx}"></div>`;
+        return `<div style="position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${thickness}px;transform:translate(-50%,-50%) rotate(${rotate}deg);background:${stroke};opacity:${opacity};z-index:${z};${fx}pointer-events:none;"></div>`;
       }
       return `<div style="${common}background:${fill};border:${strokeWidth}px solid ${stroke};border-radius:${radius}px;"></div>`;
     })
@@ -278,7 +284,7 @@ function renderCustomTextBoxes(data = {}, layerMap = {}) {
 function industrialProductAlert(data, theme, effects = {}) {
   const d = normalizeContent(data);
   const c = d; // content
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:${theme.background_color || "#ffffff"};`)}">
     ${headerBar(theme)}
@@ -294,7 +300,7 @@ function industrialProductAlert(data, theme, effects = {}) {
         ${d.bullet_points?.length?`<ul style="list-style:none;padding:0;margin-bottom:16px;">${hasText(d.label_features) ? `<li style="padding:0 0 6px 0;font-size:9px;font-weight:700;letter-spacing:1px;color:${theme.primary_color};${fieldStyle(c,'label_features',{color:theme.primary_color,size:9})}">${esc(d.label_features)}</li>` : ''}${d.bullet_points.slice(0,7).map(p=>`<li style="padding:4px 0;font-size:12px;color:#334155;display:flex;align-items:flex-start;gap:8px;${fieldStyle(c,'bullets',{color:'#334155',size:12})}"><span style="color:${d.bullet_color || '#9ecb2d'};font-size:11px;line-height:1.3;display:inline-block;width:10px;">${d.bullet_style === 'square' || !d.bullet_style ? '&#9632;' : '&#9679;'}</span><span style="flex:1;">${esc(p)}</span></li>`).join('')}</ul>`:''}
         ${d.applications?`<div style="margin-bottom:12px;">${hasText(d.label_applications) ? `<div style="font-size:9px;font-weight:700;color:${theme.primary_color};letter-spacing:1px;margin-bottom:4px;${fieldStyle(c,'label_applications',{color:theme.primary_color,size:9})}">${esc(d.label_applications)}</div>` : ''}<p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'applications',{color:'#475569',size:11})}">${esc(d.applications)}</p></div>`:''}
         ${d.key_benefits?`<div style="background:${theme.primary_color}10;border-left:3px solid ${theme.primary_color};padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:14px;">${hasText(d.label_benefits) ? `<div style="font-size:9px;font-weight:700;color:${theme.primary_color};margin-bottom:3px;${fieldStyle(c,'label_benefits',{color:theme.primary_color,size:9})}">${esc(d.label_benefits)}</div>` : ''}<p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits',{color:'#334155',size:11})}">${esc(d.key_benefits)}</p></div>`:''}
-        ${d.cta_text?`<div style="background:${theme.primary_color};color:#fff;padding:10px 22px;border-radius:4px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;display:inline-block;width:fit-content;">${esc(d.cta_text)}</div>`:''}
+        ${d.cta_text?`<div style="background:${theme.primary_color};color:#fff;padding:10px 22px;border-radius:4px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;display:inline-block;width:fit-content;${fieldStyle(c,'cta',{color:'#ffffff',size:13})}">${esc(d.cta_text)}</div>`:''}
       </div>
     </div>
     ${isLayerVisible(layerMap,'footer') ? footerBar(theme) : ''}
@@ -308,7 +314,7 @@ function industrialProductAlert(data, theme, effects = {}) {
 // ========== TEMPLATE 2: Event Poster ==========
 function eventPoster(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:linear-gradient(160deg,${theme.primary_color} 0%,${theme.secondary_color} 60%,#0c1425 100%);`)}">
     <div style="padding:40px;display:flex;flex-direction:column;align-items:center;text-align:center;height:100%;overflow:hidden;">
@@ -320,7 +326,7 @@ function eventPoster(data, theme, effects = {}) {
         ${d.bullet_points?.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:14px;">${d.bullet_points.slice(0,6).map(p=>`<span style="padding:4px 12px;border:1px solid rgba(255,255,255,0.25);border-radius:16px;font-size:10px;color:rgba(255,255,255,0.85);">${esc(p)}</span>`).join('')}</div>`:''}
         ${d.applications?`<p style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:10px;${fieldStyle(c,'applications')}">${esc(d.applications)}</p>`:''}
         ${d.key_benefits?`<p style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:14px;${fieldStyle(c,'benefits')}">${esc(d.key_benefits)}</p>`:''}
-        ${d.cta_text?`<div style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:10px 28px;border-radius:50px;font-family:'Montserrat',sans-serif;font-weight:600;font-size:13px;margin-top:12px;">${esc(d.cta_text)}</div>`:''}
+        ${d.cta_text?`<div style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:10px 28px;border-radius:50px;font-family:'Montserrat',sans-serif;font-weight:600;font-size:13px;margin-top:12px;${fieldStyle(c,'cta',{size:13})}">${esc(d.cta_text)}</div>`:''}
       </div>
       <div style="display:flex;gap:30px;align-items:center;padding:20px 0;border-top:1px solid rgba(255,255,255,0.15);width:100%;justify-content:center;">
         <img src="${DEMART.logo_b64}" style="height:32px;filter:brightness(0) invert(1);opacity:0.8;" />
@@ -337,7 +343,7 @@ function eventPoster(data, theme, effects = {}) {
 // ========== TEMPLATE 3: Minimal Premium ==========
 function minimalPremium(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
     ${headerBar(theme)}
@@ -367,7 +373,7 @@ function minimalPremium(data, theme, effects = {}) {
 // ========== TEMPLATE 4: Tech Data Sheet ==========
 function techDataSheet(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
     ${headerBar(theme)}
@@ -397,7 +403,7 @@ function techDataSheet(data, theme, effects = {}) {
 function photoDominant(data, theme, effects = {}) {
   const d = normalizeContent(data);
   const c = d;
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, `background:${theme.background_color || "#ffffff"};`)}">
     ${isLayerVisible(layerMap,'image') && isGroupVisible(d,'image',true) && d.image_data?`<img src="${d.image_data}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${d.image_fit||'cover'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}" />`:`<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1e293b,#0f172a);"></div>`}
@@ -407,7 +413,7 @@ function photoDominant(data, theme, effects = {}) {
       <h1 style="font-family:'Montserrat',sans-serif;font-size:clamp(20px,4vw,38px);font-weight:800;color:#fff;line-height:1.15;margin-bottom:12px;${fieldStyle(c,'title',{color:'#ffffff'})}">${esc(d.title||'Baslik')}</h1>
       ${d.subtitle?`<h2 style="font-size:clamp(12px,2vw,18px);color:rgba(255,255,255,0.85);margin-bottom:12px;${fieldStyle(c,'subtitle')}">${esc(d.subtitle)}</h2>`:''}
       ${d.description?`<p style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;max-width:450px;margin-bottom:18px;${fieldStyle(c,'description')}">${esc(d.description)}</p>`:''}
-      ${d.cta_text?`<div style="border:2px solid #fff;color:#fff;padding:10px 26px;display:inline-block;font-family:'Montserrat',sans-serif;font-weight:600;font-size:13px;width:fit-content;">${esc(d.cta_text)}</div>`:''}
+      ${d.cta_text?`<div style="border:2px solid #fff;color:#fff;padding:10px 26px;display:inline-block;font-family:'Montserrat',sans-serif;font-weight:600;font-size:13px;width:fit-content;${fieldStyle(c,'cta',{size:13})}">${esc(d.cta_text)}</div>`:''}
       <div style="display:flex;gap:24px;align-items:center;margin-top:30px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.2);">
         <img src="${DEMART.logo_b64}" style="height:26px;filter:brightness(0) invert(1);opacity:0.7;" />
         <img src="${DEMART.sofis_b64}" style="height:24px;filter:brightness(0) invert(1);opacity:0.7;" />
@@ -424,7 +430,7 @@ function photoDominant(data, theme, effects = {}) {
 // ========== TEMPLATE 6: Geometric Corporate ==========
 function geometricCorporate(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
     ${headerBar(theme)}
@@ -454,7 +460,7 @@ function geometricCorporate(data, theme, effects = {}) {
 // ========== TEMPLATE 7: Dark Tech ==========
 function darkTech(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   const neon = theme.accent_color || '#22d3ee';
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;background:linear-gradient(180deg,#020617,#0f172a 50%,#020617);">
@@ -472,7 +478,7 @@ function darkTech(data, theme, effects = {}) {
         ${d.bullet_points?.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">${d.bullet_points.slice(0,8).map(p=>`<div style="padding:5px 12px;border:1px solid ${neon}30;border-radius:3px;font-size:10px;color:#cbd5e1;background:${neon}08;${fieldStyle(c,'bullets',{size:10})}">${esc(p)}</div>`).join('')}</div>`:''}
         ${d.applications?`<p style="font-size:11px;color:#64748b;margin-bottom:10px;${fieldStyle(c,'applications')}">${esc(d.applications)}</p>`:''}
         ${d.key_benefits?`<p style="font-size:11px;color:${neon}80;margin-bottom:12px;${fieldStyle(c,'benefits')}">${esc(d.key_benefits)}</p>`:''}
-        ${d.cta_text?`<div style="border:1px solid ${neon};color:${neon};padding:8px 20px;display:inline-block;font-family:'Montserrat',sans-serif;font-weight:600;font-size:12px;width:fit-content;border-radius:3px;">${esc(d.cta_text)}</div>`:''}
+        ${d.cta_text?`<div style="border:1px solid ${neon};color:${neon};padding:8px 20px;display:inline-block;font-family:'Montserrat',sans-serif;font-weight:600;font-size:12px;width:fit-content;border-radius:3px;${fieldStyle(c,'cta',{size:12})}">${esc(d.cta_text)}</div>`:''}
         ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="margin-top:14px;"><img src="${d.image_data}" style="max-width:320px;max-height:180px;object-fit:${d.image_fit||'contain'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}border-radius:6px;box-shadow:0 0 30px ${neon}20;" /></div>`:''}
       </div>
       <div style="border-top:1px solid #1e293b;padding-top:12px;display:flex;justify-content:space-between;">
@@ -491,7 +497,7 @@ function darkTech(data, theme, effects = {}) {
 // ========== TEMPLATE 8: Clean Industrial Grid ==========
 function cleanIndustrialGrid(data, theme, effects = {}) {
   const d = normalizeContent(data); const c = d;
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   const icons = ['&#9881;','&#9889;','&#9878;','&#9850;','&#10003;','&#9733;','&#9830;','&#9824;'];
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:#fff;")}">
@@ -504,6 +510,13 @@ function cleanIndustrialGrid(data, theme, effects = {}) {
       ${isLayerVisible(layerMap,'image') && d.image_data?`<div style="text-align:center;margin-bottom:16px;"><img src="${d.image_data}" style="max-height:160px;object-fit:${d.image_fit||'contain'};${layerEffectsStyle(effects,{opacity:true,shadow:true,feather:true,blend:true})}border-radius:10px;" /></div>`:''}
       ${d.bullet_points?.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">${d.bullet_points.slice(0,8).map((p,i)=>`<div style="background:#f8fafc;padding:14px;border-radius:8px;display:flex;gap:10px;align-items:flex-start;border:1px solid #e2e8f0;"><div style="width:30px;height:30px;background:${theme.primary_color}15;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="color:${theme.primary_color};font-size:16px;">${icons[i%icons.length]}</span></div><span style="font-size:11px;color:#334155;line-height:1.4;${fieldStyle(c,'bullets',{size:11})}">${esc(p)}</span></div>`).join('')}</div>`:''}
       ${d.description?`<p style="font-size:11px;color:#475569;line-height:1.6;text-align:center;max-width:550px;margin:0 auto;${fieldStyle(c,'description',{size:11})}">${esc(d.description)}</p>`:''}
+      ${hasText(d.label_alert) ? `<div style="font-size:9px;font-weight:700;color:${theme.primary_color};${fieldStyle(c,'label_alert',{color:theme.primary_color,size:9})}">${esc(d.label_alert)}</div>` : ''}
+      ${hasText(d.label_features) ? `<div style="font-size:9px;font-weight:700;color:${theme.primary_color};${fieldStyle(c,'label_features',{color:theme.primary_color,size:9})}">${esc(d.label_features)}</div>` : ''}
+      ${hasText(d.label_applications) ? `<div style="font-size:9px;font-weight:700;color:${theme.primary_color};${fieldStyle(c,'label_applications',{color:theme.primary_color,size:9})}">${esc(d.label_applications)}</div>` : ''}
+      ${hasText(d.label_benefits) ? `<div style="font-size:9px;font-weight:700;color:${theme.primary_color};${fieldStyle(c,'label_benefits',{color:theme.primary_color,size:9})}">${esc(d.label_benefits)}</div>` : ''}
+      ${d.applications?`<p style="font-size:11px;color:#475569;line-height:1.5;${fieldStyle(c,'applications',{size:11})}">${esc(d.applications)}</p>`:''}
+      ${d.key_benefits?`<p style="font-size:11px;color:#334155;line-height:1.5;${fieldStyle(c,'benefits',{size:11})}">${esc(d.key_benefits)}</p>`:''}
+      ${d.cta_text?`<div style="background:${theme.primary_color};color:#fff;padding:10px 18px;border-radius:6px;font-size:12px;font-weight:700;display:inline-block;${fieldStyle(c,'cta',{color:'#ffffff',size:12})}">${esc(d.cta_text)}</div>`:''}
     </div>
     ${isLayerVisible(layerMap,'footer') ? footerBar(theme) : ''}
     ${renderShapeLayers(d, layerMap)}
@@ -516,7 +529,7 @@ function cleanIndustrialGrid(data, theme, effects = {}) {
 // ========== TEMPLATE 9: Greeting Card ==========
 function greetingCard(data, theme, effects = {}) {
   const d = normalizeContent(data);
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   const bg = d.background_color || theme.primary_color;
   const txt = d.text_color || '#ffffff';
   const isDark = bg !== '#ffffff' && bg !== '#fff';
@@ -544,7 +557,7 @@ function greetingCard(data, theme, effects = {}) {
 // ========== TEMPLATE 10: Condolence Card ==========
 function condolenceCard(data, theme, effects = {}) {
   const d = normalizeContent(data);
-  const layerMap = getLayerMap(d.layers);
+  const layerMap = getContentLayerMap(d);
   return `<!DOCTYPE html><html><head><style>${BASE_STYLES}</style></head><body>
   <div class="page" style="width:794px;height:1123px;${pickPageBackground(d.background_color, "background:linear-gradient(180deg,#1e293b,#0f172a);")}">
     <div style="position:absolute;top:44px;left:44px;right:44px;bottom:44px;border:1px solid rgba(148,163,184,0.15);"></div>

@@ -60,6 +60,7 @@ export const DEFAULT_FIELD_BOXES = {
   label_features: { x: 67, y: 66, width: 30, height: 4, zIndex: 14 },
   label_applications: { x: 67, y: 83, width: 30, height: 4, zIndex: 14 },
   label_benefits: { x: 67, y: 90, width: 30, height: 4, zIndex: 14 },
+  cta: { x: 67, y: 97, width: 30, height: 6, zIndex: 14 },
 };
 
 
@@ -161,10 +162,12 @@ export function normalizeContent(content = {}) {
   c.field_boxes = { ...DEFAULT_FIELD_BOXES, ...(c.field_boxes || {}) };
 
   const legacyOverlays = normalizeOverlayImages(c.overlay_images || []);
-  const existingLayers = c.layers && typeof c.layers === 'object' && !Array.isArray(c.layers) ? c.layers : {};
+  const existingLayerData = c.layers && typeof c.layers === 'object' && !Array.isArray(c.layers) ? c.layers : {};
+  const legacyLayerVisibility = Array.isArray(c.layers) ? c.layers : (Array.isArray(c.layer_visibility) ? c.layer_visibility : []);
+  c.layer_visibility = legacyLayerVisibility;
   c.layers = {
-    ...existingLayers,
-    overlays: normalizeOverlayImages(existingLayers.overlays?.length ? existingLayers.overlays : legacyOverlays),
+    ...existingLayerData,
+    overlays: normalizeOverlayImages(existingLayerData.overlays?.length ? existingLayerData.overlays : legacyOverlays),
   };
   c.overlay_images = c.layers.overlays;
 

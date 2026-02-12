@@ -285,7 +285,7 @@ export default function Editor() {
 
   const updateLayers = (nextLayers) => {
     setLayers(nextLayers);
-    updatePageContent('layers', nextLayers);
+    updatePageContent('layer_visibility', nextLayers);
   };
 
   const effectSupportByGuide = {
@@ -341,7 +341,7 @@ export default function Editor() {
 
   useEffect(() => {
     if (!selectedPage) return;
-    if (Array.isArray(selectedPage.content?.layers) && selectedPage.content.layers.length) setLayers(selectedPage.content.layers);
+    if (Array.isArray(selectedPage.content?.layer_visibility) && selectedPage.content.layer_visibility.length) setLayers(selectedPage.content.layer_visibility);
     if (selectedPage.content?.effects) setEffects(selectedPage.content.effects);
     setSelectedGuide(null);
   }, [selectedPageId]);
@@ -470,7 +470,6 @@ export default function Editor() {
 
   const updateOverlays = (next) => {
     updatePageContent('layers', { ...(selectedPage?.content?.layers || {}), overlays: next });
-    updatePageContent('overlay_images', next);
   };
 
   const updateOverlayAt = (idx, patch) => {
@@ -738,7 +737,7 @@ export default function Editor() {
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-3 px-1 pt-2">
                     <div className="flex flex-wrap justify-between items-start gap-2">
-                      <p className="text-[10px] text-zinc-500 max-w-[180px] leading-4">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
+                      <p className="text-[10px] text-zinc-500 leading-4 break-words whitespace-normal w-full">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
                       <div className="flex items-center gap-1">
                         {uiMode === 'basic' && (
                           <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { setUiMode('advanced'); setShowGuides(true); toast.success('Gelismis moda gecildi: kutulari tasiyip silebilirsiniz.'); }}>Kutulari Duzenle</Button>
@@ -825,7 +824,7 @@ export default function Editor() {
                       <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => updatePageContent('custom_text_boxes', [...(selectedPage.content?.custom_text_boxes || []), { id: `txt-${Date.now()}`, text: 'Yeni metin', x: 10, y: 10, width: 30, height: 12, fontSize: 14, color: '#ffffff', bold: false, align: 'left', zIndex: 7 }])}>
                         <Plus className="w-3 h-3 mr-1" />Serbest Metin
                       </Button>
-                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300 ml-1" onClick={() => updatePageContent('shape_layers', [...(selectedPage.content?.shape_layers || []), { id: `sh-${Date.now()}`, type: 'rect', x: 80, y: 50, width: 20, height: 40, color: '#0f2f44', opacity: 80, borderRadius: 0, zIndex: 5, locked: false }])}>
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300 ml-1" onClick={() => updatePageContent('shape_layers', [...(selectedPage.content?.shape_layers || []), { id: `sh-${Date.now()}`, type: 'rect', x: 80, y: 50, width: 20, height: 20, color: '#0f2f44', fillColor:'#0f2f44', strokeColor:'#0f2f44', strokeWidth:0, opacity: 80, borderRadius: 0, zIndex: 12, locked: false, circleMode:'perfect' }])}>
                         <Plus className="w-3 h-3 mr-1" />Sekil
                       </Button>
                     </div>
@@ -845,7 +844,7 @@ export default function Editor() {
                           </div>
                           <input type="color" value={sh.fillColor || sh.color || '#0f2f44'} onChange={(e)=>updateShapeAt(idx,{color:e.target.value,fillColor:e.target.value})} className="h-6 w-full bg-zinc-800 border border-zinc-700 rounded" />
                           <input type="color" value={sh.strokeColor || sh.color || '#0f2f44'} onChange={(e)=>updateShapeAt(idx,{strokeColor:e.target.value})} className="h-6 w-full bg-zinc-800 border border-zinc-700 rounded" title="Stroke color" />
-                          <Select value={sh.type || 'rect'} onValueChange={(v)=>updateShapeAt(idx,{type:v})}><SelectTrigger className="h-6 text-[10px] bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger><SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="rect">Rect</SelectItem><SelectItem value="circle">Circle/Ellipse</SelectItem><SelectItem value="line">Line</SelectItem></SelectContent></Select>
+                          <Select value={sh.type || 'rect'} onValueChange={(v)=>updateShapeAt(idx,v === 'circle' ? {type:v,circleMode:'perfect',height:sh.width || 20} : {type:v})}><SelectTrigger className="h-6 text-[10px] bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger><SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="rect">Rect</SelectItem><SelectItem value="circle">Circle/Ellipse</SelectItem><SelectItem value="line">Line</SelectItem></SelectContent></Select>
                           {sh.type === 'circle' && <Select value={sh.circleMode || 'ellipse'} onValueChange={(v)=>updateShapeAt(idx,{circleMode:v})}><SelectTrigger className="h-6 text-[10px] bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger><SelectContent className="bg-zinc-900 border-zinc-800"><SelectItem value="ellipse">Ellipse</SelectItem><SelectItem value="perfect">Perfect circle</SelectItem></SelectContent></Select>}
                           <Input type="number" value={sh.strokeWidth ?? 0} onChange={(e)=>updateShapeAt(idx,{strokeWidth:Number(e.target.value)||0})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Stroke px" />
                           <Input type="number" value={sh.zIndex ?? 5} onChange={(e)=>updateShapeAt(idx,{zIndex:Number(e.target.value)||5})} className="h-6 text-[10px] bg-zinc-800 border-zinc-700" placeholder="Z-index" />
@@ -859,19 +858,19 @@ export default function Editor() {
                     <div className="grid grid-cols-2 gap-1">
                       <div>
                         <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Uyari</Label>
-                        <Input value={selectedPage.content?.label_alert||""} onChange={(e)=>updatePageContent('label_alert',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                        <Input value={selectedPage.content?.label_alert||""} onChange={(e)=>updatePageContent('label_alert',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'label_alert' })} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
                       </div>
                       <div>
                         <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Ozellik</Label>
-                        <Input value={selectedPage.content?.label_features||""} onChange={(e)=>updatePageContent('label_features',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                        <Input value={selectedPage.content?.label_features||""} onChange={(e)=>updatePageContent('label_features',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'label_features' })} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
                       </div>
                       <div>
                         <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Uygulama</Label>
-                        <Input value={selectedPage.content?.label_applications||""} onChange={(e)=>updatePageContent('label_applications',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                        <Input value={selectedPage.content?.label_applications||""} onChange={(e)=>updatePageContent('label_applications',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'label_applications' })} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
                       </div>
                       <div>
                         <Label className="text-[10px] font-semibold text-zinc-500 uppercase">Baslik Etiketi: Avantaj</Label>
-                        <Input value={selectedPage.content?.label_benefits||""} onChange={(e)=>updatePageContent('label_benefits',e.target.value)} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
+                        <Input value={selectedPage.content?.label_benefits||""} onChange={(e)=>updatePageContent('label_benefits',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'label_benefits' })} className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" />
                       </div>
                     </div>
 
@@ -881,7 +880,7 @@ export default function Editor() {
                     {/* CTA */}
                     <div>
                       <Label className="text-[10px] font-semibold text-zinc-500 uppercase">CTA Butonu</Label>
-                      <Input value={selectedPage.content?.cta_text||""} onChange={(e) => updatePageContent('cta_text',e.target.value)} placeholder="Detayli Bilgi"
+                      <Input value={selectedPage.content?.cta_text||""} onChange={(e) => updatePageContent('cta_text',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'cta' })} placeholder="Detayli Bilgi"
                         className="dense-input bg-zinc-800/50 border-zinc-700 text-zinc-100" data-testid="input-cta" />
                     </div>
 
