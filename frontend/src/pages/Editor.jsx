@@ -653,7 +653,7 @@ export default function Editor() {
                     style={{ left: `${ov.x ?? 50}%`, top: `${ov.y ?? 50}%`, width: `${ov.width ?? 30}%`, height: `${ov.height ?? 30}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 20 }}
                     title="Surukle / boyutlandir"
                   >
-                    {ov.image_data ? <img src={ov.image_data} alt="overlay" className="w-full h-full object-contain pointer-events-none" /> : null}
+                    <div className="text-[10px] text-sky-300 px-1">Overlay {idx + 1}</div>
                   </div>
                   );
                 })}
@@ -737,7 +737,7 @@ export default function Editor() {
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-3 px-1 pt-2">
                     <div className="flex flex-wrap justify-between items-start gap-2">
-                      <p className="text-[10px] text-zinc-500 leading-4 break-words whitespace-normal w-full">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
+                      <p className="text-[10px] text-zinc-500 leading-4 break-words whitespace-normal flex-1 min-w-0">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
                       <div className="flex items-center gap-1">
                         {uiMode === 'basic' && (
                           <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { setUiMode('advanced'); setShowGuides(true); toast.success('Gelismis moda gecildi: kutulari tasiyip silebilirsiniz.'); }}>Kutulari Duzenle</Button>
@@ -815,6 +815,25 @@ export default function Editor() {
                             />
                           </div>
                         ))}
+                        {selectedGuide?.kind === 'field' && selectedGuide?.id && (
+                          <div className="flex gap-1 pt-1">
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => {
+                              const all = Object.values(selectedPage.content?.field_boxes || {}).map((b) => Number(b?.zIndex ?? 12));
+                              const max = all.length ? Math.max(...all) : 12;
+                              updateFieldBoxAt(selectedGuide.id, { zIndex: max + 1 });
+                            }}>En One</Button>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => {
+                              const all = Object.values(selectedPage.content?.field_boxes || {}).map((b) => Number(b?.zIndex ?? 12));
+                              const min = all.length ? Math.min(...all) : 12;
+                              updateFieldBoxAt(selectedGuide.id, { zIndex: Math.max(0, min - 1) });
+                            }}>En Arkaya</Button>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => {
+                              const contentFieldMap = { bullets: 'bullet_points', benefits: 'key_benefits', cta: 'cta_text' };
+                              const targetField = contentFieldMap[selectedGuide.id] || selectedGuide.id;
+                              updatePageContent(targetField, targetField === 'bullet_points' ? [] : '');
+                            }}>Icerigi Temizle</Button>
+                          </div>
+                        )}
                       </div>
                     )}
 
