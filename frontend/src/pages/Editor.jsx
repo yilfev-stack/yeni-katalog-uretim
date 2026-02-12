@@ -190,6 +190,10 @@ export default function Editor() {
       applications: labelOrDefault(selectedPage?.content?.label_applications, 'UYGULAMA ALANLARI'),
       benefits: labelOrDefault(selectedPage?.content?.label_benefits, 'TEMEL AVANTAJLAR'),
       cta: 'CTA',
+      label_alert: 'Etiket: Uyari',
+      label_features: 'Etiket: Ozellik',
+      label_applications: 'Etiket: Uygulama',
+      label_benefits: 'Etiket: Avantaj',
     };
     return labels[field] || field;
   };
@@ -626,8 +630,8 @@ export default function Editor() {
                     <ChevronRight className={`w-3 h-3 text-zinc-600 transition-transform ${openSections.content ? 'rotate-90' : ''}`} />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-3 px-1 pt-2">
-                    <div className="flex justify-between items-center gap-2">
-                      <p className="text-[10px] text-zinc-500">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
+                    <div className="flex flex-wrap justify-between items-start gap-2">
+                      <p className="text-[10px] text-zinc-500 max-w-[180px] leading-4">Guides kapaliyken secmek icin bu listedeki alanlara odaklanin.</p>
                       <div className="flex items-center gap-1">
                         {uiMode === 'basic' && (
                           <Button variant="outline" size="sm" className="h-6 text-[10px] border-zinc-700 text-zinc-300" onClick={() => { setUiMode('advanced'); setShowGuides(true); toast.success('Gelismis moda gecildi: kutulari tasiyip silebilirsiniz.'); }}>Kutulari Duzenle</Button>
@@ -688,6 +692,25 @@ export default function Editor() {
                       <Textarea value={selectedPage.content?.key_benefits||""} onChange={(e) => updatePageContent('key_benefits',e.target.value)} onFocus={() => setSelectedGuide({ kind: 'field', id: 'benefits' })} rows={2}
                         className="text-xs bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none" data-testid="input-benefits" />
                     </div>
+
+
+                    {uiMode === 'advanced' && (
+                      <div className="space-y-1 border border-zinc-800 rounded p-1">
+                        <p className="text-[10px] text-zinc-500">Metin Kutu Z-Sira (On/Arka)</p>
+                        {Object.entries(selectedPage.content?.field_boxes || {}).map(([field, box]) => (
+                          <div key={`fz-${field}`} className="grid grid-cols-[1fr_60px] gap-1 items-center">
+                            <span className="text-[10px] text-zinc-400 truncate">{getFieldBoxLabel(field)}</span>
+                            <Input
+                              type="number"
+                              value={box?.zIndex ?? 12}
+                              onChange={(e) => updateFieldBoxAt(field, { zIndex: Number(e.target.value) || 12 })}
+                              className="h-6 text-[10px] bg-zinc-800 border-zinc-700"
+                              title="Buyuk deger one gelir"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {uiMode === 'advanced' && (
                       <>

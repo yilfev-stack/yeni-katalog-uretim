@@ -43,6 +43,10 @@ export const FIELD_OVERFLOW_DEFAULTS = {
   bullets: { overflow: 'clamp', clampLines: 8, minSize: 10 },
   applications: { overflow: 'clamp', clampLines: 4, minSize: 10 },
   benefits: { overflow: 'clamp', clampLines: 4, minSize: 10 },
+  label_alert: { overflow: 'clamp', clampLines: 1, minSize: 8 },
+  label_features: { overflow: 'clamp', clampLines: 1, minSize: 8 },
+  label_applications: { overflow: 'clamp', clampLines: 1, minSize: 8 },
+  label_benefits: { overflow: 'clamp', clampLines: 1, minSize: 8 },
 };
 
 export const DEFAULT_FIELD_BOXES = {
@@ -52,6 +56,10 @@ export const DEFAULT_FIELD_BOXES = {
   bullets: { x: 67, y: 63, width: 52, height: 22, zIndex: 12 },
   applications: { x: 67, y: 83, width: 52, height: 10, zIndex: 12 },
   benefits: { x: 67, y: 92, width: 52, height: 8, zIndex: 12 },
+  label_alert: { x: 67, y: 56, width: 24, height: 4, zIndex: 14 },
+  label_features: { x: 67, y: 66, width: 30, height: 4, zIndex: 14 },
+  label_applications: { x: 67, y: 83, width: 30, height: 4, zIndex: 14 },
+  label_benefits: { x: 67, y: 90, width: 30, height: 4, zIndex: 14 },
 };
 
 
@@ -91,7 +99,7 @@ export function normalizeContent(content = {}) {
     if (c[`${field}_min_size`] === undefined) c[`${field}_min_size`] = cfg.minSize;
   });
 
-  if (!c.field_boxes) c.field_boxes = { ...DEFAULT_FIELD_BOXES };
+  c.field_boxes = { ...DEFAULT_FIELD_BOXES, ...(c.field_boxes || {}) };
   if (!Array.isArray(c.shape_layers)) c.shape_layers = DEFAULT_SHAPE_LAYERS.map((sh) => ({ ...sh }));
 
   return c;
