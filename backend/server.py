@@ -49,34 +49,51 @@ EXPORTS_DIR.mkdir(exist_ok=True)
 _browser = None
 _playwright = None
 
+def resolve_chromium_path() -> str:
+    env_path = os.environ.get('CHROMIUM_PATH')
+    candidates = [
+        env_path,
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+    ]
+
+    for c in candidates:
+        if c and os.path.isfile(c):
+            return c
+
+    raise RuntimeError(
+        "Chromium binary bulunamadi. CHROMIUM_PATH ayarlayin veya container icinde /usr/bin/chromium kurulu oldugundan emin olun. "
+        "Docker smoke test komutu: docker compose run --rm backend python tests/export_smoke_test.py"
+    )
+
+
 async def get_browser():
     global _browser, _playwright
-    if _browser is None or not _browser.is_connected():
+    if _browser is not None and _browser.is_connected():
+        return _browser
+
+    if _playwright is None:
         _playwright = await async_playwright().start()
-        # Auto-detect Chromium path
-        import shutil
-        chrome_path = None
-        candidates = [
-            '/pw-browsers/chromium-1208/chrome-linux/chrome',
-            '/pw-browsers/chromium_headless_shell-1208/chrome-linux/headless_shell',
-            shutil.which('chromium-browser'),
-            shutil.which('chromium'),
-            shutil.which('google-chrome'),
-        ]
-        # Also search playwright's default locations
-        import glob
-        candidates += glob.glob('/root/.cache/ms-playwright/chromium*/chrome-linux/chrome')
-        candidates += glob.glob('/root/.cache/ms-playwright/chromium*/chrome-linux/headless_shell')
-        for c in candidates:
-            if c and os.path.isfile(c):
-                chrome_path = c
-                break
-        launch_args = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-        if chrome_path:
-            _browser = await _playwright.chromium.launch(executable_path=chrome_path, args=launch_args)
-        else:
-            _browser = await _playwright.chromium.launch(args=launch_args)
-    return _browser
+
+    chrome_path = resolve_chromium_path()
+
+    launch_profiles = [
+        ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-software-rasterizer', '--font-render-hinting=none'],
+        ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    ]
+
+    last_err = None
+    for args in launch_profiles:
+        try:
+            _browser = await _playwright.chromium.launch(executable_path=chrome_path, args=args)
+            if _browser and _browser.is_connected():
+                logger.info(f"Playwright browser launched successfully. binary={chrome_path} args={args}")
+                return _browser
+        except Exception as e:
+            last_err = e
+            logger.warning(f"Chromium launch failed with args {args}: {e}")
+
+    raise RuntimeError(f"Playwright browser launch failed after retries. binary={chrome_path} error={last_err}")
 
 async def render_html_to_pdf(html_content: str, width_mm: int = 210, height_mm: int = 297, landscape: bool = False) -> bytes:
     try:
@@ -240,11 +257,13 @@ class ExportRequest(BaseModel):
     is_mm: bool = True
     landscape: bool = False
     optimize: bool = False
+    debug_html: bool = False
 
 class BatchExportRequest(BaseModel):
     html_content: str
     presets: List[dict] = []
     catalog_name: str = "export"
+    debug_html: bool = False
 
 class ExportRecord(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -277,6 +296,12 @@ DEFAULT_GLOSSARY = [
 # ==================== STARTUP ====================
 @app.on_event("startup")
 async def startup():
+    try:
+        cp = resolve_chromium_path()
+        logger.info(f"Chromium path resolved at startup: {cp}")
+    except Exception as e:
+        logger.warning(f"Chromium path resolve warning: {e}")
+
     # Seed default themes
     for theme in DEFAULT_THEMES:
         existing = await db.themes.find_one({"id": theme["id"]}, {"_id": 0})
@@ -781,6 +806,10 @@ async def export_pdf(req: ExportRequest):
         try:
             async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
                 await f.write(pdf_bytes)
+            if req.debug_html:
+                debug_path = EXPORTS_DIR / f"export_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                async with aiofiles.open(debug_path, 'w', encoding='utf-8') as hf:
+                    await hf.write(req.html_content)
         except Exception:
             pass
         return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={file_name}"})
@@ -815,6 +844,10 @@ async def export_image(req: ExportRequest):
         try:
             async with aiofiles.open(EXPORTS_DIR / file_name, 'wb') as f:
                 await f.write(img_bytes)
+            if req.debug_html:
+                debug_path = EXPORTS_DIR / f"export_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                async with aiofiles.open(debug_path, 'w', encoding='utf-8') as hf:
+                    await hf.write(req.html_content)
         except Exception:
             pass
         record = ExportRecord(format=ext, size_preset=f"{w}x{h}", quality="web" if req.optimize else "high", file_size=len(img_bytes))
@@ -866,6 +899,10 @@ async def export_batch(req: BatchExportRequest):
     zip_name = f"{safe_name}_{date_str}_batch.zip"
     async with aiofiles.open(EXPORTS_DIR / zip_name, 'wb') as f:
         await f.write(zip_buffer.getvalue())
+    if req.debug_html:
+        debug_path = EXPORTS_DIR / f"export_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        async with aiofiles.open(debug_path, 'w', encoding='utf-8') as hf:
+            await hf.write(req.html_content)
     zip_buffer.seek(0)
     return StreamingResponse(zip_buffer, media_type="application/zip", headers={"Content-Disposition": f"attachment; filename={zip_name}"})
 
