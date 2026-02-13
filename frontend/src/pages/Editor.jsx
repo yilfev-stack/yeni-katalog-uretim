@@ -513,6 +513,34 @@ export default function Editor() {
     return { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) };
   };
 
+  const calcPercentBoxFromElement = (el) => {
+    const previewEl = previewRef.current;
+    if (!previewEl || !el) return null;
+    const previewRect = previewEl.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    if (!previewRect.width || !previewRect.height) return null;
+
+    let x = ((elRect.left + (elRect.width / 2) - previewRect.left) / previewRect.width) * 100;
+    let y = ((elRect.top + (elRect.height / 2) - previewRect.top) / previewRect.height) * 100;
+    let width = (elRect.width / previewRect.width) * 100;
+    let height = (elRect.height / previewRect.height) * 100;
+
+    if (snapToGrid) {
+      const g = 2;
+      x = Math.round(x / g) * g;
+      y = Math.round(y / g) * g;
+      width = Math.round(width / g) * g;
+      height = Math.round(height / g) * g;
+    }
+
+    return {
+      x: Number(Math.min(100, Math.max(0, x)).toFixed(2)),
+      y: Number(Math.min(100, Math.max(0, y)).toFixed(2)),
+      width: Number(Math.min(100, Math.max(2, width)).toFixed(2)),
+      height: Number(Math.min(100, Math.max(2, height)).toFixed(2)),
+    };
+  };
+
   if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-[#004aad] border-t-transparent rounded-full"></div></div>;
 
   return (
@@ -587,6 +615,10 @@ export default function Editor() {
                     onClick={() => setSelectedGuide({ kind: 'field', id: field })}
                     draggable
                     onDragEnd={(e) => updateFieldBoxAt(field, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onMouseUp={(e) => {
+                      const patch = calcPercentBoxFromElement(e.currentTarget);
+                      if (patch) updateFieldBoxAt(field, patch);
+                    }}
                     className="absolute border border-amber-400/80 bg-amber-200/10 cursor-move"
                     style={{ left: `${box.x ?? 50}%`, top: `${box.y ?? 50}%`, width: `${box.width ?? 30}%`, height: `${box.height ?? 10}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 19 }}
                     title={`Alan kutusu: ${getFieldBoxLabel(field)}`}
@@ -618,6 +650,11 @@ export default function Editor() {
                         key={shapeId}
                         draggable={!sh.locked}
                         onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                        onMouseUp={(e) => {
+                          if (sh.locked) return;
+                          const patch = calcPercentBoxFromElement(e.currentTarget);
+                          if (patch) updateShapeAt(idx, { x: patch.x, y: patch.y, width: patch.width });
+                        }}
                         onClick={() => setSelectedGuide({ kind: 'shape', id: shapeId })}
                         className={commonClass}
                         style={{ ...baseStyle, height: `${thickness}px`, resize: 'horizontal', overflow: 'visible', background: sh.color || '#1e293b' }}
@@ -631,6 +668,11 @@ export default function Editor() {
                       key={shapeId}
                       draggable={!sh.locked}
                       onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                      onMouseUp={(e) => {
+                        if (sh.locked) return;
+                        const patch = calcPercentBoxFromElement(e.currentTarget);
+                        if (patch) updateShapeAt(idx, patch);
+                      }}
                       onClick={() => setSelectedGuide({ kind: 'shape', id: shapeId })}
                       className={commonClass}
                       style={{ ...baseStyle, resize: 'both', overflow: 'hidden', background: sh.color || '#1e293b', borderRadius: type === 'circle' ? '9999px' : `${sh.borderRadius ?? 0}px` }}
@@ -647,6 +689,10 @@ export default function Editor() {
                     key={overlayId}
                     draggable
                     onDragEnd={(e) => updateOverlayAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onMouseUp={(e) => {
+                      const patch = calcPercentBoxFromElement(e.currentTarget);
+                      if (patch) updateOverlayAt(idx, patch);
+                    }}
                     onClick={() => setSelectedGuide({ kind: 'overlay', id: overlayId })}
                     onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'overlay', index: idx }); }}
                     className="absolute border border-[#004aad]/70 bg-black/10 cursor-move"
@@ -666,6 +712,10 @@ export default function Editor() {
                     key={textId}
                     draggable
                     onDragEnd={(e) => updateTextBoxAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onMouseUp={(e) => {
+                      const patch = calcPercentBoxFromElement(e.currentTarget);
+                      if (patch) updateTextBoxAt(idx, patch);
+                    }}
                     onClick={() => setSelectedGuide({ kind: 'custom', id: textId })}
                     className="absolute border border-emerald-400/80 bg-black/30 text-white p-1 cursor-move"
                     style={{ left: `${tb.x ?? 10}%`, top: `${tb.y ?? 10}%`, width: `${tb.width ?? 30}%`, height: `${tb.height ?? 12}%`, transform: 'translate(-50%, -50%)', resize: 'both', overflow: 'hidden', zIndex: 21, fontSize: `${tb.fontSize ?? 14}px`, fontWeight: tb.bold ? 700 : 400, textAlign: tb.align || 'left' }}
