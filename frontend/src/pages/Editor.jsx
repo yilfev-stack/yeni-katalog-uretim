@@ -251,6 +251,7 @@ export default function Editor() {
   const [overlayTargetIndex, setOverlayTargetIndex] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [exportDebugHtml, setExportDebugHtml] = useState(false);
+  const [dragGuide, setDragGuide] = useState(null);
 
   const fetchCatalog = useCallback(async () => {
     try {
@@ -499,20 +500,6 @@ export default function Editor() {
     updatePageContent('custom_text_boxes', arr);
   };
 
-  const calcPercentFromPoint = (clientX, clientY) => {
-    const el = previewRef.current;
-    if (!el) return { x: 50, y: 50 };
-    const rect = el.getBoundingClientRect();
-    let x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
-    let y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
-    if (snapToGrid) {
-      const g = 2;
-      x = Math.round(x / g) * g;
-      y = Math.round(y / g) * g;
-    }
-    return { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) };
-  };
-
   const calcPercentBoxFromElement = (el) => {
     const previewEl = previewRef.current;
     if (!previewEl || !el) return null;
@@ -540,6 +527,67 @@ export default function Editor() {
       height: Number(Math.min(100, Math.max(2, height)).toFixed(2)),
     };
   };
+
+  const beginGuideDrag = (e, payload) => {
+    if (e.button !== 0) return;
+    if (e.currentTarget?.isContentEditable || e.target?.isContentEditable) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const resizeHandle = 14;
+    const nearRight = e.clientX >= rect.right - resizeHandle;
+    const nearBottom = e.clientY >= rect.bottom - resizeHandle;
+    if (payload.kind === 'shape-line') {
+      if (nearRight) return;
+    } else if (nearRight && nearBottom) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedGuide({ kind: payload.kind === 'shape-line' ? 'shape' : payload.kind, id: payload.id });
+    setDragGuide({
+      ...payload,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startX: Number(payload.x ?? 50),
+      startY: Number(payload.y ?? 50),
+    });
+  };
+
+  useEffect(() => {
+    if (!dragGuide) return;
+
+    const onMove = (e) => {
+      const previewEl = previewRef.current;
+      if (!previewEl) return;
+      const rect = previewEl.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      let nextX = dragGuide.startX + (((e.clientX - dragGuide.startClientX) / rect.width) * 100);
+      let nextY = dragGuide.startY + (((e.clientY - dragGuide.startClientY) / rect.height) * 100);
+      if (snapToGrid) {
+        const g = 2;
+        nextX = Math.round(nextX / g) * g;
+        nextY = Math.round(nextY / g) * g;
+      }
+      const patch = {
+        x: Number(Math.min(100, Math.max(0, nextX)).toFixed(2)),
+        y: Number(Math.min(100, Math.max(0, nextY)).toFixed(2)),
+      };
+
+      if (dragGuide.kind === 'field') updateFieldBoxAt(dragGuide.id, patch);
+      else if (dragGuide.kind === 'overlay') updateOverlayAt(dragGuide.index, patch);
+      else if (dragGuide.kind === 'custom') updateTextBoxAt(dragGuide.index, patch);
+      else if (dragGuide.kind === 'shape' || dragGuide.kind === 'shape-line') updateShapeAt(dragGuide.index, patch);
+    };
+
+    const onUp = () => setDragGuide(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragGuide, snapToGrid, selectedPageId]);
 
   if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-[#004aad] border-t-transparent rounded-full"></div></div>;
 
@@ -613,8 +661,7 @@ export default function Editor() {
                   <div
                     key={`fb-${field}`}
                     onClick={() => setSelectedGuide({ kind: 'field', id: field })}
-                    draggable
-                    onDragEnd={(e) => updateFieldBoxAt(field, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onMouseDown={(e) => beginGuideDrag(e, { kind: 'field', id: field, x: box?.x, y: box?.y })}
                     onMouseUp={(e) => {
                       const patch = calcPercentBoxFromElement(e.currentTarget);
                       if (patch) updateFieldBoxAt(field, patch);
@@ -648,8 +695,7 @@ export default function Editor() {
                     return (
                       <div
                         key={shapeId}
-                        draggable={!sh.locked}
-                        onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                        onMouseDown={(e) => !sh.locked && beginGuideDrag(e, { kind: 'shape-line', id: shapeId, index: idx, x: sh?.x, y: sh?.y })}
                         onMouseUp={(e) => {
                           if (sh.locked) return;
                           const patch = calcPercentBoxFromElement(e.currentTarget);
@@ -666,8 +712,7 @@ export default function Editor() {
                   return (
                     <div
                       key={shapeId}
-                      draggable={!sh.locked}
-                      onDragEnd={(e) => !sh.locked && updateShapeAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                      onMouseDown={(e) => !sh.locked && beginGuideDrag(e, { kind: 'shape', id: shapeId, index: idx, x: sh?.x, y: sh?.y })}
                       onMouseUp={(e) => {
                         if (sh.locked) return;
                         const patch = calcPercentBoxFromElement(e.currentTarget);
@@ -687,8 +732,7 @@ export default function Editor() {
                   return (
                   <div
                     key={overlayId}
-                    draggable
-                    onDragEnd={(e) => updateOverlayAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onMouseDown={(e) => beginGuideDrag(e, { kind: 'overlay', id: overlayId, index: idx, x: ov?.x, y: ov?.y })}
                     onMouseUp={(e) => {
                       const patch = calcPercentBoxFromElement(e.currentTarget);
                       if (patch) updateOverlayAt(idx, patch);
@@ -710,8 +754,7 @@ export default function Editor() {
                   return (
                   <div
                     key={textId}
-                    draggable
-                    onDragEnd={(e) => updateTextBoxAt(idx, calcPercentFromPoint(e.clientX, e.clientY))}
+                    onMouseDown={(e) => beginGuideDrag(e, { kind: 'custom', id: textId, index: idx, x: tb?.x, y: tb?.y })}
                     onMouseUp={(e) => {
                       const patch = calcPercentBoxFromElement(e.currentTarget);
                       if (patch) updateTextBoxAt(idx, patch);
